@@ -190,6 +190,12 @@
             <label id="powerLabel">Avg Power (W)</label>
             <input type="number" id="power" value="300">
         </div>
+
+        <!-- New Input for Average Speed -->
+        <div class="input-group">
+            <label id="avgSpeedLabel">Avg Speed (km/h)</label>
+            <input type="number" id="avgSpeed" value="25" step="0.1">
+        </div>
     </div>
 
     <button onclick="calculate()">Calculate Best Wheels</button>
@@ -207,6 +213,7 @@
         };
 
         const wheels = [
+            { name: "Zwift 32mm Carbon", flat: 0, climb: 0 }, // Baseline wheels
             { name: "Tron", flat: 114.6, climb: 30.0 },
             { name: "Zipp 858/Super9", flat: 112.4, climb: 36.5 },
             { name: "Enve 8.9", flat: 110.7, climb: 47.8 },
@@ -229,7 +236,8 @@
             const labels = {
                 distance: ['km', 'mi'],
                 elevation: ['m', 'ft'],
-                weight: ['kg', 'lb']
+                weight: ['kg', 'lb'],
+                avgSpeed: ['km/h', 'mph']
             };
 
             Object.entries(labels).forEach(([id, units]) => {
@@ -256,6 +264,7 @@
                 { id: 'distance', factor: conversion.milesToKm },
                 { id: 'elevation', factor: conversion.feetToM },
                 { id: 'weight', factor: conversion.lbToKg },
+                { id: 'avgSpeed', factor: conversion.milesToKm }
             ];
 
             elements.forEach(({ id, factor }) => {
@@ -290,13 +299,15 @@
                 weight: parseInput('weight'), // in kg
                 height: isMetric ? parseInput('height') : 
                     (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm, // in cm
-                power: parseInput('power') // in watts
+                power: parseInput('power'), // in watts
+                avgSpeed: parseInput('avgSpeed') // in km/h
             };
 
             if (!isMetric) {
                 inputs.distance *= conversion.milesToKm; // convert miles to km
                 inputs.elevation *= conversion.feetToM; // convert feet to meters
                 inputs.weight *= conversion.lbToKg; // convert lbs to kg
+                inputs.avgSpeed *= conversion.milesToKm; // convert mph to km/h
             }
 
             // Calculate the climbing ratio (how much of the ride is climbing)
@@ -318,9 +329,12 @@
                               distanceFactor * weightFactor * powerFactor * heightFactor
             })).sort((a, b) => b.totalSavings - a.totalSavings);
 
+            // Calculate base time (without wheel savings)
+            const baseTime = (inputs.distance / inputs.avgSpeed) * 3600; // in seconds
+
             // Update the chart and table
             updateChart(results);
-            updateTable(results);
+            updateTable(results, baseTime);
         }
 
         function parseInput(id) {
@@ -379,7 +393,7 @@
             });
         }
 
-        function updateTable(results) {
+        function updateTable(results, baseTime) {
             const table = document.getElementById('results');
             table.innerHTML = `
                 <tr>
@@ -387,19 +401,33 @@
                     <th>Total Savings</th>
                     <th>Flat Savings</th>
                     <th>Climb Savings</th>
+                    <th>Est. Time</th>
+                    <th>% Gain</th>
                 </tr>
             `;
 
             results.forEach((wheel, index) => {
                 const row = table.insertRow();
+                const totalTime = baseTime - wheel.totalSavings;
+                const percentageGain = (wheel.totalSavings / baseTime) * 100; // Calculate % gain
+                
                 row.innerHTML = `
                     <td>${wheel.name}</td>
                     <td>${wheel.totalSavings.toFixed(1)}s</td>
                     <td>${wheel.flatSavings.toFixed(1)}s</td>
                     <td>${wheel.climbSavings.toFixed(1)}s</td>
+                    <td>${formatTime(totalTime)}</td>
+                    <td>${percentageGain.toFixed(2)}%</td>
                 `;
                 if (index === 0) row.classList.add('best');
             });
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${hours}h ${minutes}m ${secs}s`;
         }
 
         // Initial setup
