@@ -145,6 +145,44 @@
         .imperial-height-inputs input {
             flex: 1;
         }
+
+        .add-wheel-form {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+
+        .add-wheel-form h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .add-wheel-form .input-group {
+            margin-bottom: 15px;
+        }
+
+        .remove-button {
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .remove-button:hover {
+            background: #cc0000;
+        }
+
+        .disclaimer {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -199,6 +237,28 @@
     </div>
 
     <button onclick="calculate()">Calculate Best Wheels</button>
+
+    <!-- Add Wheel Form -->
+    <div class="add-wheel-form">
+        <h2>Add Custom Wheels</h2>
+        <div class="input-group">
+            <label>Wheel Name</label>
+            <input type="text" id="wheelName" placeholder="Enter wheel name">
+        </div>
+        <div class="input-group">
+            <label>Flat Savings (seconds)</label>
+            <input type="number" id="wheelFlat" placeholder="Enter flat savings">
+        </div>
+        <div class="input-group">
+            <label>Climb Savings (seconds)</label>
+            <input type="number" id="wheelClimb" placeholder="Enter climb savings">
+        </div>
+        <button onclick="addWheel()">Add Wheel</button>
+        <div class="disclaimer">
+            Note: Custom wheels are temporary and will be removed on page refresh.
+        </div>
+    </div>
+
     <canvas id="wheelChart"></canvas>
     <table class="results-table" id="results"></table>
 
@@ -212,14 +272,15 @@
             inToCm: 2.54
         };
 
-        const wheels = [
-            { name: "Zwift 32mm Carbon", flat: 0, climb: 0 }, // Baseline wheels
-            { name: "Tron", flat: 114.6, climb: 30.0 },
-            { name: "Zipp 858/Super9", flat: 112.4, climb: 36.5 },
-            { name: "Enve 8.9", flat: 110.7, climb: 47.8 },
-            { name: "Enve 7.8", flat: 108.6, climb: 55.6 },
-            { name: "Zipp 454", flat: 97.2, climb: 64.7 },
-            { name: "Lightweight", flat: 74.2, climb: 65.3 }
+        // Initialize wheels array with default wheels
+        let wheels = [
+            { name: "Zwift 32mm Carbon", flat: 0, climb: 0, custom: false }, // Baseline wheels
+            { name: "Tron", flat: 114.6, climb: 30.0, custom: false },
+            { name: "Zipp 858/Super9", flat: 112.4, climb: 36.5, custom: false },
+            { name: "Enve 8.9", flat: 110.7, climb: 47.8, custom: false },
+            { name: "Enve 7.8", flat: 108.6, climb: 55.6, custom: false },
+            { name: "Zipp 454", flat: 97.2, climb: 64.7, custom: false },
+            { name: "Lightweight", flat: 74.2, climb: 65.3, custom: false }
         ];
 
         document.getElementById('unitSlider').addEventListener('click', toggleUnits);
@@ -403,6 +464,7 @@
                     <th>Climb Savings</th>
                     <th>Est. Time</th>
                     <th>% Gain</th>
+                    <th>Actions</th>
                 </tr>
             `;
 
@@ -418,6 +480,9 @@
                     <td>${wheel.climbSavings.toFixed(1)}s</td>
                     <td>${formatTime(totalTime)}</td>
                     <td>${percentageGain.toFixed(2)}%</td>
+                    <td>
+                        ${wheel.custom ? `<button class="remove-button" onclick="removeWheel('${wheel.name}')">Remove</button>` : ''}
+                    </td>
                 `;
                 if (index === 0) row.classList.add('best');
             });
@@ -428,6 +493,35 @@
             const minutes = Math.floor((seconds % 3600) / 60);
             const secs = Math.floor(seconds % 60);
             return `${hours}h ${minutes}m ${secs}s`;
+        }
+
+        // Function to add a new wheel
+        function addWheel() {
+            const wheelName = document.getElementById('wheelName').value;
+            const wheelFlat = parseFloat(document.getElementById('wheelFlat').value);
+            const wheelClimb = parseFloat(document.getElementById('wheelClimb').value);
+
+            if (!wheelName || isNaN(wheelFlat) || isNaN(wheelClimb)) {
+                alert("Please fill in all fields with valid values.");
+                return;
+            }
+
+            // Add the new wheel to the wheels array
+            wheels.push({ name: wheelName, flat: wheelFlat, climb: wheelClimb, custom: true });
+
+            // Clear the form
+            document.getElementById('wheelName').value = '';
+            document.getElementById('wheelFlat').value = '';
+            document.getElementById('wheelClimb').value = '';
+
+            // Re-run calculations
+            calculate();
+        }
+
+        // Function to remove a custom wheel
+        function removeWheel(wheelName) {
+            wheels = wheels.filter(wheel => wheel.name !== wheelName);
+            calculate(); // Re-run calculations
         }
 
         // Initial setup
