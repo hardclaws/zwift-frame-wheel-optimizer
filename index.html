@@ -285,30 +285,40 @@
 
         function calculate() {
             const inputs = {
-                distance: parseInput('distance'),
-                elevation: parseInput('elevation'),
-                weight: parseInput('weight'),
+                distance: parseInput('distance'), // in km
+                elevation: parseInput('elevation'), // in meters
+                weight: parseInput('weight'), // in kg
                 height: isMetric ? parseInput('height') : 
-                    (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm,
-                power: parseInput('power')
+                    (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm, // in cm
+                power: parseInput('power') // in watts
             };
 
             if (!isMetric) {
-                inputs.distance *= conversion.milesToKm;
-                inputs.elevation *= conversion.feetToM;
-                inputs.weight *= conversion.lbToKg;
+                inputs.distance *= conversion.milesToKm; // convert miles to km
+                inputs.elevation *= conversion.feetToM; // convert feet to meters
+                inputs.weight *= conversion.lbToKg; // convert lbs to kg
             }
 
-            const heightFactor = 1 + (inputs.height - 175) * 0.002;
-            const powerFactor = 300 / inputs.power;
-            const elevationRatio = (inputs.elevation / 1000) / (inputs.distance / 40) * (inputs.weight / 75);
-            const climbingRatio = Math.min(Math.max(elevationRatio, 0), 1);
+            // Calculate the climbing ratio (how much of the ride is climbing)
+            const climbingRatio = (inputs.elevation / 1000) / (inputs.distance / 40) * (inputs.weight / 75);
+            const normalizedClimbingRatio = Math.min(Math.max(climbingRatio, 0), 1); // Ensure it's between 0 and 1
 
+            // Adjust savings based on distance, weight, and power
+            const distanceFactor = inputs.distance / 40; // Normalize to 40km
+            const weightFactor = inputs.weight / 75; // Normalize to 75kg
+            const powerFactor = 300 / inputs.power; // Normalize to 300W
+            const heightFactor = 1 + (inputs.height - 175) * 0.002; // Adjust for height
+
+            // Calculate total savings for each wheel
             const results = wheels.map(wheel => ({
                 ...wheel,
-                savings: (wheel.flat * (1 - climbingRatio) + wheel.climb * climbingRatio) * powerFactor * heightFactor
-            })).sort((a, b) => b.savings - a.savings);
+                flatSavings: wheel.flat * distanceFactor * weightFactor * powerFactor * heightFactor,
+                climbSavings: wheel.climb * distanceFactor * weightFactor * powerFactor * heightFactor,
+                totalSavings: (wheel.flat * (1 - normalizedClimbingRatio) + wheel.climb * normalizedClimbingRatio) *
+                              distanceFactor * weightFactor * powerFactor * heightFactor
+            })).sort((a, b) => b.totalSavings - a.totalSavings);
 
+            // Update the chart and table
             updateChart(results);
             updateTable(results);
         }
@@ -333,7 +343,7 @@
                             name: wheel.name
                         })),
                         backgroundColor: results.map(w => 
-                            w.savings === Math.max(...results.map(r => r.savings)) 
+                            w.totalSavings === Math.max(...results.map(r => r.totalSavings)) 
                             ? 'rgba(33, 150, 243, 0.8)' 
                             : 'rgba(200, 200, 200, 0.6)'
                         ),
@@ -384,9 +394,9 @@
                 const row = table.insertRow();
                 row.innerHTML = `
                     <td>${wheel.name}</td>
-                    <td>${wheel.savings.toFixed(1)}s</td>
-                    <td>${wheel.flat.toFixed(1)}s</td>
-                    <td>${wheel.climb.toFixed(1)}s</td>
+                    <td>${wheel.totalSavings.toFixed(1)}s</td>
+                    <td>${wheel.flatSavings.toFixed(1)}s</td>
+                    <td>${wheel.climbSavings.toFixed(1)}s</td>
                 `;
                 if (index === 0) row.classList.add('best');
             });
