@@ -382,13 +382,18 @@
             const heightFactor = 1 + (inputs.height - 175) * 0.002; // Adjust for height
 
             // Calculate total savings for each wheel
-            const results = wheels.map(wheel => ({
-                ...wheel,
-                flatSavings: wheel.flat * distanceFactor * weightFactor * powerFactor * heightFactor,
-                climbSavings: wheel.climb * distanceFactor * weightFactor * powerFactor * heightFactor,
-                totalSavings: (wheel.flat * (1 - normalizedClimbingRatio) + wheel.climb * normalizedClimbingRatio) *
-                              distanceFactor * weightFactor * powerFactor * heightFactor
-            })).sort((a, b) => b.totalSavings - a.totalSavings);
+            const results = wheels.map(wheel => {
+                const flatSavings = wheel.flat * distanceFactor * weightFactor * powerFactor * heightFactor;
+                const climbSavings = wheel.climb * distanceFactor * weightFactor * powerFactor * heightFactor;
+                const totalSavings = (flatSavings * (1 - normalizedClimbingRatio)) + (climbSavings * normalizedClimbingRatio);
+
+                return {
+                    ...wheel,
+                    flatSavings: flatSavings,
+                    climbSavings: climbSavings,
+                    totalSavings: totalSavings
+                };
+            }).sort((a, b) => b.totalSavings - a.totalSavings);
 
             // Calculate base time (without wheel savings)
             const baseTime = (inputs.distance / inputs.avgSpeed) * 3600; // in seconds
@@ -407,14 +412,23 @@
             
             if (wheelChart) wheelChart.destroy();
 
+            // Calculate dynamic scales for x and y axes
+            const flatSavings = results.map(wheel => wheel.flatSavings);
+            const climbSavings = results.map(wheel => wheel.climbSavings);
+
+            const minFlat = Math.min(...flatSavings);
+            const maxFlat = Math.max(...flatSavings);
+            const minClimb = Math.min(...climbSavings);
+            const maxClimb = Math.max(...climbSavings);
+
             wheelChart = new Chart(ctx, {
                 type: 'scatter',
                 data: {
                     datasets: [{
                         label: 'Wheel Performance',
                         data: results.map(wheel => ({
-                            x: wheel.flat,
-                            y: wheel.climb,
+                            x: wheel.flatSavings,
+                            y: wheel.climbSavings,
                             name: wheel.name
                         })),
                         backgroundColor: results.map(w => 
@@ -431,14 +445,14 @@
                     scales: {
                         x: {
                             title: { display: true, text: 'Flat Savings (seconds)', color: '#666' },
-                            min: -150,
-                            max: 150,
+                            min: minFlat - 10, // Add padding
+                            max: maxFlat + 10, // Add padding
                             grid: { color: '#eee' }
                         },
                         y: {
                             title: { display: true, text: 'Climb Savings (seconds)', color: '#666' },
-                            min: -80,
-                            max: 80,
+                            min: minClimb - 10, // Add padding
+                            max: maxClimb + 10, // Add padding
                             grid: { color: '#eee' }
                         }
                     },
