@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zwift Wheel Optimizer Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2196F3;
+            --secondary-color: #1976D2;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .unit-slider {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #ddd;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .unit-slider.imperial {
+            background: var(--primary-color);
+        }
+
+        .slider-handle {
+            position: absolute;
+            left: 3px;
+            top: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .unit-slider.imperial .slider-handle {
+            transform: translateX(30px);
+        }
+
+        .unit-label {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            color: #444;
+        }
+
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: var(--secondary-color);
+        }
+
+        #wheelChart {
+            margin: 25px 0;
+            height: 400px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .results-table th {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .best {
+            background: #e8f5e9;
+            font-weight: bold;
+        }
+
+        .imperial-height-inputs {
+            display: flex;
+            gap: 5px;
+        }
+
+        .imperial-height-inputs input {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚴 Zwift Wheel Optimizer Pro</h1>
+
+    <div class="slider-container">
+        <div class="unit-slider" id="unitSlider">
+            <div class="slider-handle"></div>
+        </div>
+        <span class="unit-label" id="unitLabel">Metric</span>
+    </div>
+
+    <div class="input-grid">
+        <div class="input-group">
+            <label id="distanceLabel">Distance (km)</label>
+            <input type="number" id="distance" value="40" step="0.1">
+        </div>
+
+        <div class="input-group">
+            <label id="elevationLabel">Elevation (m)</label>
+            <input type="number" id="elevation" value="1000">
+        </div>
+
+        <div class="input-group">
+            <label id="weightLabel">Weight (kg)</label>
+            <input type="number" id="weight" value="75" step="0.1">
+        </div>
+
+        <div class="input-group metric-height">
+            <label>Height (cm)</label>
+            <input type="number" id="height" value="175">
+        </div>
+
+        <div class="input-group imperial-height" style="display: none;">
+            <label>Height (ft/in)</label>
+            <div class="imperial-height-inputs">
+                <input type="number" id="heightFeet" placeholder="Feet" min="0">
+                <input type="number" id="heightInches" placeholder="Inches" min="0" max="11.9" step="0.1">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label id="powerLabel">Avg Power (W)</label>
+            <input type="number" id="power" value="300">
+        </div>
+    </div>
+
+    <button onclick="calculate()">Calculate Best Wheels</button>
+    <canvas id="wheelChart"></canvas>
+    <table class="results-table" id="results"></table>
+
+    <script>
+        let isMetric = true;
+        let wheelChart = null;
+        const conversion = {
+            milesToKm: 1.60934,
+            feetToM: 0.3048,
+            lbToKg: 0.453592,
+            inToCm: 2.54
+        };
+
+        const wheels = [
+            { name: "Tron", flat: 114.6, climb: 30.0 },
+            { name: "Zipp 858/Super9", flat: 112.4, climb: 36.5 },
+            { name: "Enve 8.9", flat: 110.7, climb: 47.8 },
+            { name: "Enve 7.8", flat: 108.6, climb: 55.6 },
+            { name: "Zipp 454", flat: 97.2, climb: 64.7 },
+            { name: "Lightweight", flat: 74.2, climb: 65.3 }
+        ];
+
+        document.getElementById('unitSlider').addEventListener('click', toggleUnits);
+
+        function toggleUnits() {
+            isMetric = !isMetric;
+            updateUnitDisplay();
+            convertValues();
+            calculate();
+        }
+
+        function updateUnitDisplay() {
+            const slider = document.getElementById('unitSlider');
+            const labels = {
+                distance: ['km', 'mi'],
+                elevation: ['m', 'ft'],
+                weight: ['kg', 'lb']
+            };
+
+            Object.entries(labels).forEach(([id, units]) => {
+                document.getElementById(`${id}Label`).textContent = 
+                    `${id.charAt(0).toUpperCase() + id.slice(1)} (${units[isMetric ? 0 : 1]})`;
+            });
+
+            const metricHeightGroup = document.querySelector('.metric-height');
+            const imperialHeightGroup = document.querySelector('.imperial-height');
+            if (isMetric) {
+                metricHeightGroup.style.display = 'flex';
+                imperialHeightGroup.style.display = 'none';
+            } else {
+                metricHeightGroup.style.display = 'none';
+                imperialHeightGroup.style.display = 'flex';
+            }
+
+            slider.classList.toggle('imperial', !isMetric);
+            document.getElementById('unitLabel').textContent = isMetric ? 'Metric' : 'Imperial';
+        }
+
+        function convertValues() {
+            const elements = [
+                { id: 'distance', factor: conversion.milesToKm },
+                { id: 'elevation', factor: conversion.feetToM },
+                { id: 'weight', factor: conversion.lbToKg },
+            ];
+
+            elements.forEach(({ id, factor }) => {
+                const element = document.getElementById(id);
+                let value = parseFloat(element.value);
+                value = isMetric ? value * factor : value / factor;
+                element.value = value.toFixed(1);
+            });
+
+            if (isMetric) {
+                // Convert imperial to metric for height
+                const feet = parseFloat(document.getElementById('heightFeet').value) || 0;
+                const inches = parseFloat(document.getElementById('heightInches').value) || 0;
+                const totalInches = feet * 12 + inches;
+                const cm = totalInches * conversion.inToCm;
+                document.getElementById('height').value = cm.toFixed(0);
+            } else {
+                // Convert metric to imperial for height
+                const cm = parseFloat(document.getElementById('height').value) || 0;
+                const totalInches = cm / conversion.inToCm;
+                const feet = Math.floor(totalInches / 12);
+                const inches = totalInches % 12;
+                document.getElementById('heightFeet').value = feet.toFixed(0);
+                document.getElementById('heightInches').value = inches.toFixed(1);
+            }
+        }
+
+        function calculate() {
+            const inputs = {
+                distance: parseInput('distance'),
+                elevation: parseInput('elevation'),
+                weight: parseInput('weight'),
+                height: isMetric ? parseInput('height') : 
+                    (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm,
+                power: parseInput('power')
+            };
+
+            if (!isMetric) {
+                inputs.distance *= conversion.milesToKm;
+                inputs.elevation *= conversion.feetToM;
+                inputs.weight *= conversion.lbToKg;
+            }
+
+            const heightFactor = 1 + (inputs.height - 175) * 0.002;
+            const powerFactor = 300 / inputs.power;
+            const elevationRatio = (inputs.elevation / 1000) / (inputs.distance / 40) * (inputs.weight / 75);
+            const climbingRatio = Math.min(Math.max(elevationRatio, 0), 1);
+
+            const results = wheels.map(wheel => ({
+                ...wheel,
+                savings: (wheel.flat * (1 - climbingRatio) + wheel.climb * climbingRatio) * powerFactor * heightFactor
+            })).sort((a, b) => b.savings - a.savings);
+
+            updateChart(results);
+            updateTable(results);
+        }
+
+        function parseInput(id) {
+            return parseFloat(document.getElementById(id).value) || 0;
+        }
+
+        function updateChart(results) {
+            const ctx = document.getElementById('wheelChart').getContext('2d');
+            
+            if (wheelChart) wheelChart.destroy();
+
+            wheelChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Wheel Performance',
+                        data: results.map(wheel => ({
+                            x: wheel.flat,
+                            y: wheel.climb,
+                            name: wheel.name
+                        })),
+                        backgroundColor: results.map(w => 
+                            w.savings === Math.max(...results.map(r => r.savings)) 
+                            ? 'rgba(33, 150, 243, 0.8)' 
+                            : 'rgba(200, 200, 200, 0.6)'
+                        ),
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1,
+                        pointRadius: 7
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Flat Savings (seconds)', color: '#666' },
+                            min: 70,
+                            max: 120,
+                            grid: { color: '#eee' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Climb Savings (seconds)', color: '#666' },
+                            min: 25,
+                            max: 70,
+                            grid: { color: '#eee' }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.raw.name}: ${ctx.parsed.x.toFixed(1)}s Flat, ${ctx.parsed.y.toFixed(1)}s Climb`
+                            }
+                        },
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateTable(results) {
+            const table = document.getElementById('results');
+            table.innerHTML = `
+                <tr>
+                    <th>Wheel</th>
+                    <th>Total Savings</th>
+                    <th>Flat Savings</th>
+                    <th>Climb Savings</th>
+                </tr>
+            `;
+
+            results.forEach((wheel, index) => {
+                const row = table.insertRow();
+                row.innerHTML = `
+                    <td>${wheel.name}</td>
+                    <td>${wheel.savings.toFixed(1)}s</td>
+                    <td>${wheel.flat.toFixed(1)}s</td>
+                    <td>${wheel.climb.toFixed(1)}s</td>
+                `;
+                if (index === 0) row.classList.add('best');
+            });
+        }
+
+        // Initial setup
+        updateUnitDisplay();
+        calculate();
+    </script>
+</body>
+</html>
