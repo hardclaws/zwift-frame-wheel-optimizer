@@ -3,544 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zwift Wheel Optimizer Pro</title>
+    <title>Zwift Wheel & Frame Optimizer Pro</title>
+    <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --primary-color: #2196F3;
-            --secondary-color: #1976D2;
-        }
-
-        body {
-            font-family: 'Arial', sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
-        }
-
-        h1 {
-            color: var(--primary-color);
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .slider-container {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .unit-slider {
-            position: relative;
-            width: 60px;
-            height: 30px;
-            background: #ddd;
-            border-radius: 15px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .unit-slider.imperial {
-            background: var(--primary-color);
-        }
-
-        .slider-handle {
-            position: absolute;
-            left: 3px;
-            top: 3px;
-            width: 24px;
-            height: 24px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .unit-slider.imperial .slider-handle {
-            transform: translateX(30px);
-        }
-
-        .unit-label {
-            font-weight: bold;
-            color: var(--primary-color);
-        }
-
-        .input-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .input-group label {
-            font-weight: bold;
-            color: #444;
-        }
-
-        input {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background 0.3s;
-        }
-
-        button:hover {
-            background: var(--secondary-color);
-        }
-
-        #wheelChart {
-            margin: 25px 0;
-            height: 400px;
-        }
-
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .results-table th,
-        .results-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .results-table th {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .best {
-            background: #e8f5e9;
-            font-weight: bold;
-        }
-
-        .imperial-height-inputs {
-            display: flex;
-            gap: 5px;
-        }
-
-        .imperial-height-inputs input {
-            flex: 1;
-        }
-
-        .add-wheel-form {
-            margin-top: 20px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: #f9f9f9;
-        }
-
-        .add-wheel-form h2 {
-            margin-top: 0;
-            color: var(--primary-color);
-        }
-
-        .add-wheel-form .input-group {
-            margin-bottom: 15px;
-        }
-
-        .remove-button {
-            background: #ff4444;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 5px 10px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .remove-button:hover {
-            background: #cc0000;
-        }
-
-        .disclaimer {
-            margin-top: 10px;
-            font-size: 0.9em;
-            color: #666;
-            font-style: italic;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 </head>
 <body>
-    <h1>🚴 Zwift Wheel Optimizer Pro</h1>
+    <h1>🚴 Zwift Wheel & Frame Optimizer Pro</h1>
 
-    <div class="slider-container">
-        <div class="unit-slider" id="unitSlider">
-            <div class="slider-handle"></div>
-        </div>
-        <span class="unit-label" id="unitLabel">Metric</span>
-    </div>
-
-    <div class="input-grid">
-        <div class="input-group">
-            <label id="distanceLabel">Distance (km)</label>
-            <input type="number" id="distance" value="40" step="0.1">
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="openTab('optimizer')">Equipment Optimizer</button>
+            <button class="tab-button" onclick="openTab('comparison')">Equipment Comparison</button>
+            <button class="tab-button" onclick="openTab('saved')">Saved Configurations</button>
         </div>
 
-        <div class="input-group">
-            <label id="elevationLabel">Elevation (m)</label>
-            <input type="number" id="elevation" value="1000">
-        </div>
+        <div class="tab-content">
+            <!-- Optimizer Tab -->
+            <div id="optimizer" class="tab-pane active">
+                <!-- Your existing optimizer content -->
+                <!-- Add frame level selector -->
+                <div class="input-section">
+                    <h3>Frame Configuration</h3>
+                    <div class="input-group">
+                        <label>Frame Upgrade Level</label>
+                        <select id="frameLevel">
+                            <option value="0">Level 0</option>
+                            <option value="5">Level 5</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
-        <div class="input-group">
-            <label id="weightLabel">Weight (kg)</label>
-            <input type="number" id="weight" value="75" step="0.1">
-        </div>
+            <!-- Comparison Tab -->
+            <div id="comparison" class="tab-pane">
+                <h2>Equipment Comparison Tool</h2>
+                
+                <div class="comparison-tabs">
+                    <button class="comparison-tab-button active" onclick="openComparisonTab('wheel')">Wheels</button>
+                    <button class="comparison-tab-button" onclick="openComparisonTab('frame')">Frames</button>
+                </div>
 
-        <div class="input-group metric-height">
-            <label>Height (cm)</label>
-            <input type="number" id="height" value="175">
-        </div>
+                <div id="wheel-comparison" class="comparison-pane active">
+                    <!-- Existing wheel comparison content -->
+                </div>
 
-        <div class="input-group imperial-height" style="display: none;">
-            <label>Height (ft/in)</label>
-            <div class="imperial-height-inputs">
-                <input type="number" id="heightFeet" placeholder="Feet" min="0">
-                <input type="number" id="heightInches" placeholder="Inches" min="0" max="11.9" step="0.1">
+                <div id="frame-comparison" class="comparison-pane">
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label>Frame Level</label>
+                            <select id="compareFrameLevel">
+                                <option value="0">Level 0</option>
+                                <option value="5">Level 5</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Frame 1</label>
+                            <select id="compareFrame1">
+                                <option value="">Select a frame</option>
+                            </select>
+                        </div>
+                        <!-- Add more frame selectors as needed -->
+                    </div>
+                    
+                    <div class="button-group">
+                        <button onclick="compareFrames()">Compare Frames</button>
+                        <button class="button-secondary" onclick="clearFrameComparison()">Clear</button>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="frameChart"></canvas>
+                    </div>
+                    
+                    <div class="comparison-grid" id="frameResults"></div>
+                </div>
+            </div>
+
+            <!-- Saved Configurations Tab -->
+            <div id="saved" class="tab-pane">
+                <!-- Your existing saved configs content -->
             </div>
         </div>
-
-        <div class="input-group">
-            <label id="powerLabel">Avg Power (W)</label>
-            <input type="number" id="power" value="300">
-        </div>
-
-        <!-- New Input for Average Speed -->
-        <div class="input-group">
-            <label id="avgSpeedLabel">Avg Speed (km/h)</label>
-            <input type="number" id="avgSpeed" value="25" step="0.1">
-        </div>
     </div>
 
-    <button onclick="calculate()">Calculate Best Wheels</button>
-
-    <!-- Add Wheel Form -->
-    <div class="add-wheel-form">
-        <h2>Add Custom Wheels</h2>
-        <div class="input-group">
-            <label>Wheel Name</label>
-            <input type="text" id="wheelName" placeholder="Enter wheel name">
-        </div>
-        <div class="input-group">
-            <label>Flat Savings (seconds)</label>
-            <input type="number" id="wheelFlat" placeholder="Enter flat savings">
-        </div>
-        <div class="input-group">
-            <label>Climb Savings (seconds)</label>
-            <input type="number" id="wheelClimb" placeholder="Enter climb savings">
-        </div>
-        <button onclick="addWheel()">Add Wheel</button>
-        <div class="disclaimer">
-            Note: Custom wheels are temporary and will be removed on page refresh.
-        </div>
+    <div id="loading">
+        <div class="spinner"></div>
+        Loading data...
     </div>
 
-    <canvas id="wheelChart"></canvas>
-    <table class="results-table" id="results"></table>
-
-    <script>
-        let isMetric = true;
-        let wheelChart = null;
-        const conversion = {
-            milesToKm: 1.60934,
-            feetToM: 0.3048,
-            lbToKg: 0.453592,
-            inToCm: 2.54
-        };
-
-        // Initialize wheels array with default wheels
-        let wheels = [
-            { name: "Zwift 32mm Carbon", flat: 0, climb: 0, custom: false }, // Baseline wheels
-            { name: "Tron", flat: 114.6, climb: 30.0, custom: false },
-            { name: "Zipp 858/Super9", flat: 112.4, climb: 36.5, custom: false },
-            { name: "Enve 8.9", flat: 110.7, climb: 47.8, custom: false },
-            { name: "Enve 7.8", flat: 108.6, climb: 55.6, custom: false },
-            { name: "Zipp 454", flat: 97.2, climb: 64.7, custom: false },
-            { name: "Lightweight", flat: 74.2, climb: 65.3, custom: false }
-        ];
-
-        document.getElementById('unitSlider').addEventListener('click', toggleUnits);
-
-        function toggleUnits() {
-            isMetric = !isMetric;
-            updateUnitDisplay();
-            convertValues();
-            calculate();
-        }
-
-        function updateUnitDisplay() {
-            const slider = document.getElementById('unitSlider');
-            const labels = {
-                distance: ['km', 'mi'],
-                elevation: ['m', 'ft'],
-                weight: ['kg', 'lb'],
-                avgSpeed: ['km/h', 'mph']
-            };
-
-            Object.entries(labels).forEach(([id, units]) => {
-                document.getElementById(`${id}Label`).textContent = 
-                    `${id.charAt(0).toUpperCase() + id.slice(1)} (${units[isMetric ? 0 : 1]})`;
-            });
-
-            const metricHeightGroup = document.querySelector('.metric-height');
-            const imperialHeightGroup = document.querySelector('.imperial-height');
-            if (isMetric) {
-                metricHeightGroup.style.display = 'flex';
-                imperialHeightGroup.style.display = 'none';
-            } else {
-                metricHeightGroup.style.display = 'none';
-                imperialHeightGroup.style.display = 'flex';
-            }
-
-            slider.classList.toggle('imperial', !isMetric);
-            document.getElementById('unitLabel').textContent = isMetric ? 'Metric' : 'Imperial';
-        }
-
-        function convertValues() {
-            const elements = [
-                { id: 'distance', factor: conversion.milesToKm },
-                { id: 'elevation', factor: conversion.feetToM },
-                { id: 'weight', factor: conversion.lbToKg },
-                { id: 'avgSpeed', factor: conversion.milesToKm }
-            ];
-
-            elements.forEach(({ id, factor }) => {
-                const element = document.getElementById(id);
-                let value = parseFloat(element.value);
-                value = isMetric ? value * factor : value / factor;
-                element.value = value.toFixed(1);
-            });
-
-            if (isMetric) {
-                // Convert imperial to metric for height
-                const feet = parseFloat(document.getElementById('heightFeet').value) || 0;
-                const inches = parseFloat(document.getElementById('heightInches').value) || 0;
-                const totalInches = feet * 12 + inches;
-                const cm = totalInches * conversion.inToCm;
-                document.getElementById('height').value = cm.toFixed(0);
-            } else {
-                // Convert metric to imperial for height
-                const cm = parseFloat(document.getElementById('height').value) || 0;
-                const totalInches = cm / conversion.inToCm;
-                const feet = Math.floor(totalInches / 12);
-                const inches = totalInches % 12;
-                document.getElementById('heightFeet').value = feet.toFixed(0);
-                document.getElementById('heightInches').value = inches.toFixed(1);
-            }
-        }
-
-        function calculate() {
-            const inputs = {
-                distance: parseInput('distance'), // in km
-                elevation: parseInput('elevation'), // in meters
-                weight: parseInput('weight'), // in kg
-                height: isMetric ? parseInput('height') : 
-                    (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm, // in cm
-                power: parseInput('power'), // in watts
-                avgSpeed: parseInput('avgSpeed') // in km/h
-            };
-
-            if (!isMetric) {
-                inputs.distance *= conversion.milesToKm; // convert miles to km
-                inputs.elevation *= conversion.feetToM; // convert feet to meters
-                inputs.weight *= conversion.lbToKg; // convert lbs to kg
-                inputs.avgSpeed *= conversion.milesToKm; // convert mph to km/h
-            }
-
-            // Calculate the climbing ratio (how much of the ride is climbing)
-            const climbingRatio = (inputs.elevation / 1000) / (inputs.distance / 40) * (inputs.weight / 75);
-            const normalizedClimbingRatio = Math.min(Math.max(climbingRatio, 0), 1); // Ensure it's between 0 and 1
-
-            // Adjust savings based on distance, weight, and power
-            const distanceFactor = inputs.distance / 40; // Normalize to 40km
-            const weightFactor = inputs.weight / 75; // Normalize to 75kg
-            const powerFactor = 300 / inputs.power; // Normalize to 300W
-            const heightFactor = 1 + (inputs.height - 175) * 0.002; // Adjust for height
-
-            // Calculate total savings for each wheel
-            const results = wheels.map(wheel => {
-                const flatSavings = wheel.flat * distanceFactor * weightFactor * powerFactor * heightFactor;
-                const climbSavings = wheel.climb * distanceFactor * weightFactor * powerFactor * heightFactor;
-                const totalSavings = (flatSavings * (1 - normalizedClimbingRatio)) + (climbSavings * normalizedClimbingRatio);
-
-                return {
-                    ...wheel,
-                    flatSavings: flatSavings,
-                    climbSavings: climbSavings,
-                    totalSavings: totalSavings
-                };
-            }).sort((a, b) => b.totalSavings - a.totalSavings);
-
-            // Calculate base time (without wheel savings)
-            const baseTime = (inputs.distance / inputs.avgSpeed) * 3600; // in seconds
-
-            // Update the chart and table
-            updateChart(results);
-            updateTable(results, baseTime);
-        }
-
-        function parseInput(id) {
-            return parseFloat(document.getElementById(id).value) || 0;
-        }
-
-        function updateChart(results) {
-            const ctx = document.getElementById('wheelChart').getContext('2d');
-            
-            if (wheelChart) wheelChart.destroy();
-
-            // Calculate dynamic scales for x and y axes
-            const flatSavings = results.map(wheel => wheel.flatSavings);
-            const climbSavings = results.map(wheel => wheel.climbSavings);
-
-            const minFlat = Math.min(...flatSavings);
-            const maxFlat = Math.max(...flatSavings);
-            const minClimb = Math.min(...climbSavings);
-            const maxClimb = Math.max(...climbSavings);
-
-            wheelChart = new Chart(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [{
-                        label: 'Wheel Performance',
-                        data: results.map(wheel => ({
-                            x: wheel.flatSavings,
-                            y: wheel.climbSavings,
-                            name: wheel.name
-                        })),
-                        backgroundColor: results.map(w => 
-                            w.totalSavings === Math.max(...results.map(r => r.totalSavings)) 
-                            ? 'rgba(33, 150, 243, 0.8)' 
-                            : 'rgba(200, 200, 200, 0.6)'
-                        ),
-                        borderColor: 'rgba(0, 0, 0, 0.1)',
-                        borderWidth: 1,
-                        pointRadius: 7
-                    }]
-                },
-                options: {
-                    scales: {
-                        x: {
-                            title: { display: true, text: 'Flat Savings (seconds)', color: '#666' },
-                            min: minFlat - 10, // Add padding
-                            max: maxFlat + 10, // Add padding
-                            grid: { color: '#eee' }
-                        },
-                        y: {
-                            title: { display: true, text: 'Climb Savings (seconds)', color: '#666' },
-                            min: minClimb - 10, // Add padding
-                            max: maxClimb + 10, // Add padding
-                            grid: { color: '#eee' }
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: ctx => `${ctx.raw.name}: ${ctx.parsed.x.toFixed(1)}s Flat, ${ctx.parsed.y.toFixed(1)}s Climb`
-                            }
-                        },
-                        legend: { display: false }
-                    }
-                }
-            });
-        }
-
-        function updateTable(results, baseTime) {
-            const table = document.getElementById('results');
-            table.innerHTML = `
-                <tr>
-                    <th>Wheel</th>
-                    <th>Total Savings</th>
-                    <th>Flat Savings</th>
-                    <th>Climb Savings</th>
-                    <th>Est. Time</th>
-                    <th>% Gain</th>
-                    <th>Actions</th>
-                </tr>
-            `;
-
-            results.forEach((wheel, index) => {
-                const row = table.insertRow();
-                const totalTime = baseTime - wheel.totalSavings;
-                const percentageGain = (wheel.totalSavings / baseTime) * 100; // Calculate % gain
-                
-                row.innerHTML = `
-                    <td>${wheel.name}</td>
-                    <td>${wheel.totalSavings.toFixed(1)}s</td>
-                    <td>${wheel.flatSavings.toFixed(1)}s</td>
-                    <td>${wheel.climbSavings.toFixed(1)}s</td>
-                    <td>${formatTime(totalTime)}</td>
-                    <td>${percentageGain.toFixed(2)}%</td>
-                    <td>
-                        ${wheel.custom ? `<button class="remove-button" onclick="removeWheel('${wheel.name}')">Remove</button>` : ''}
-                    </td>
-                `;
-                if (index === 0) row.classList.add('best');
-            });
-        }
-
-        function formatTime(seconds) {
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${hours}h ${minutes}m ${secs}s`;
-        }
-
-        // Function to add a new wheel
-        function addWheel() {
-            const wheelName = document.getElementById('wheelName').value;
-            const wheelFlat = parseFloat(document.getElementById('wheelFlat').value);
-            const wheelClimb = parseFloat(document.getElementById('wheelClimb').value);
-
-            if (!wheelName || isNaN(wheelFlat) || isNaN(wheelClimb)) {
-                alert("Please fill in all fields with valid values.");
-                return;
-            }
-
-            // Add the new wheel to the wheels array
-            wheels.push({ name: wheelName, flat: wheelFlat, climb: wheelClimb, custom: true });
-
-            // Clear the form
-            document.getElementById('wheelName').value = '';
-            document.getElementById('wheelFlat').value = '';
-            document.getElementById('wheelClimb').value = '';
-
-            // Re-run calculations
-            calculate();
-        }
-
-        // Function to remove a custom wheel
-        function removeWheel(wheelName) {
-            wheels = wheels.filter(wheel => wheel.name !== wheelName);
-            calculate(); // Re-run calculations
-        }
-
-        // Initial setup
-        updateUnitDisplay();
-        calculate();
-    </script>
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
