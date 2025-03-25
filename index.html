@@ -12,6 +12,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 </head>
+        <script>
+  // Temporary debug loader
+  async function debugLoad() {
+    try {
+      const test = await fetch('/data/wheels.json');
+      console.log('Test load:', test.ok ? '✅ Success' : '❌ Failed', test.status);
+    } catch (e) {
+      console.error('Debug load failed:', e);
+    }
+  }
+  debugLoad();
+</script>
 <body>
     <h1>🚴 Zwift Wheel & Frame Optimizer Pro</h1>
 
@@ -98,16 +110,5 @@
     <script src="js/config.js"></script>
     <script src="js/app.js"></script>
 </body>
-    <script>
-  // Temporary debug loader
-  async function debugLoad() {
-    try {
-      const test = await fetch('/data/wheels.json');
-      console.log('Test load:', test.ok ? '✅ Success' : '❌ Failed', test.status);
-    } catch (e) {
-      console.error('Debug load failed:', e);
-    }
-  }
-  debugLoad();
-</script>
+
 </html>
