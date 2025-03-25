@@ -1,14 +1,16 @@
 // Configuration constants
 export const DATA_URLS = {
-  wheels: 'data/wheels.json',
-  frames: 'data/frames.json'
-};
-
-export const conversion = {
-  milesToKm: 1.60934,
-  feetToM: 0.3048,
-  lbToKg: 0.453592,
-  inToCm: 2.54
+  // GitHub Pages path (must match your repo name exactly)
+  wheels: '/zwift-wheel-optimizer/data/wheels.json',
+  frames: '/zwift-wheel-optimizer/data/frames.json',
+  
+  // Local development paths
+  localWheels: './data/wheels.json',
+  localFrames: './data/frames.json',
+  
+  // Raw GitHub fallback
+  rawWheels: 'https://raw.githubusercontent.com/hardclaws/zwift-wheel-optimizer/main/data/wheels.json',
+  rawFrames: 'https://raw.githubusercontent.com/hardclaws/zwift-wheel-optimizer/main/data/frames.json'
 };
 
 export const DEFAULT_VALUES = {
