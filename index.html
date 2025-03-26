@@ -40,6 +40,7 @@
             padding: 20px;
             line-height: 1.6;
             color: #333;
+            background-color: #f5f5f5;
         }
 
         h1, h2, h3 {
@@ -343,6 +344,8 @@
         .tab-buttons {
             display: flex;
             border-bottom: 1px solid #ddd;
+            background-color: white;
+            border-radius: 8px 8px 0 0;
         }
 
         .tab-button {
@@ -352,15 +355,19 @@
             cursor: pointer;
             border-bottom: 3px solid transparent;
             font-weight: 500;
+            color: #555;
         }
 
         .tab-button.active {
             border-bottom-color: var(--primary-color);
             color: var(--primary-color);
+            background-color: #f9f9f9;
         }
 
         .tab-content {
-            padding: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 0 0 8px 8px;
         }
 
         .tab-pane {
@@ -488,7 +495,7 @@
                             </div>
                             
                             <h4>Wheel Types</h4>
-                            <div class="filter-group">
+                            <div class="filter-group" id="wheelTypeFilters">
                                 <div class="filter-chip active" data-type="all">All Wheels</div>
                                 <div class="filter-chip" data-type="aero">Aero Wheels</div>
                                 <div class="filter-chip" data-type="climb">Climbing Wheels</div>
@@ -765,6 +772,7 @@
                 loadCustomWheels();
                 loadSavedConfigurations();
                 updateUnitDisplay();
+                setupFilterChips();
                 populateBrandFilters();
                 populateComparisonDropdowns();
                 populateBikeModels();
@@ -774,6 +782,57 @@
                 document.getElementById('bikeType').addEventListener('change', populateBikeModels);
             } catch (e) {
                 console.error("Initialization error:", e);
+            }
+        }
+
+        // Setup filter chips with click handlers
+        function setupFilterChips() {
+            // Brand filters are set up in populateBrandFilters()
+            
+            // Wheel type filters
+            const wheelTypeChips = document.querySelectorAll('#wheelTypeFilters .filter-chip');
+            wheelTypeChips.forEach(chip => {
+                chip.addEventListener('click', function() {
+                    if (this.dataset.type === 'all') {
+                        // If "All Wheels" is clicked, deactivate others and activate this
+                        wheelTypeChips.forEach(c => c.classList.remove('active'));
+                        this.classList.add('active');
+                    } else {
+                        // If specific type is clicked, deactivate "All Wheels"
+                        document.querySelector('#wheelTypeFilters .filter-chip[data-type="all"]').classList.remove('active');
+                        this.classList.toggle('active');
+                        
+                        // If no type filters are active, activate "All Wheels"
+                        const activeTypes = document.querySelectorAll('#wheelTypeFilters .filter-chip.active');
+                        if (activeTypes.length === 0) {
+                            document.querySelector('#wheelTypeFilters .filter-chip[data-type="all"]').classList.add('active');
+                        }
+                    }
+                });
+            });
+        }
+
+        // Populate brand filters
+        function populateBrandFilters() {
+            try {
+                const brandFilters = document.getElementById('brandFilters');
+                brandFilters.innerHTML = '';
+                
+                const wheels = getWheels();
+                const brands = [...new Set(wheels.map(w => w.brand).filter(b => b))];
+                
+                brands.forEach(brand => {
+                    const chip = document.createElement('div');
+                    chip.className = 'filter-chip active';
+                    chip.textContent = brand;
+                    chip.dataset.brand = brand;
+                    chip.onclick = function() {
+                        this.classList.toggle('active');
+                    };
+                    brandFilters.appendChild(chip);
+                });
+            } catch (e) {
+                console.error("Error populating brand filters:", e);
             }
         }
 
@@ -1095,7 +1154,7 @@
                     </tr>
                     <tr>
                         <td>Frame Only Time</td>
-                        <td>${formatTime(baseTime - ((bestWheel.frameFlatSavings * (1 - climbingRatio)) + (bestWheel.frameClimbSavings * climbingRatio)))}</td>
+                        <td>${formatTime(baseTime - (bestWheel.frameFlatSavings * (1 - climbingRatio) + bestWheel.frameClimbSavings * climbingRatio))}</td>
                     </tr>
                     <tr>
                         <td>Best Wheel Time</td>
@@ -1179,6 +1238,7 @@
                 // Re-run calculations
                 calculate();
                 populateComparisonDropdowns();
+                populateBrandFilters();
             } catch (e) {
                 console.error("Error adding wheel:", e);
             }
@@ -1194,6 +1254,7 @@
                 
                 calculate();
                 populateComparisonDropdowns();
+                populateBrandFilters();
             } catch (e) {
                 console.error("Error removing wheel:", e);
             }
@@ -1207,29 +1268,6 @@
         }
 
         // Filter functions
-        function populateBrandFilters() {
-            try {
-                const brandFilters = document.getElementById('brandFilters');
-                brandFilters.innerHTML = '';
-                
-                const wheels = getWheels();
-                const brands = [...new Set(wheels.map(w => w.brand).filter(b => b))];
-                
-                brands.forEach(brand => {
-                    const chip = document.createElement('div');
-                    chip.className = 'filter-chip active';
-                    chip.textContent = brand;
-                    chip.dataset.brand = brand;
-                    chip.onclick = function() {
-                        this.classList.toggle('active');
-                    };
-                    brandFilters.appendChild(chip);
-                });
-            } catch (e) {
-                console.error("Error populating brand filters:", e);
-            }
-        }
-
         function applyActiveFilters(wheels) {
             try {
                 // Apply brand filters
@@ -1241,9 +1279,9 @@
                 }
                 
                 // Apply wheel type filters
-                const activeType = document.querySelector('.filter-group .filter-chip.active[data-type]')?.dataset.type;
-                if (activeType && activeType !== 'all') {
-                    wheels = wheels.filter(wheel => wheel.type === activeType);
+                const activeTypeChip = document.querySelector('#wheelTypeFilters .filter-chip.active[data-type]');
+                if (activeTypeChip && activeTypeChip.dataset.type !== 'all') {
+                    wheels = wheels.filter(wheel => wheel.type === activeTypeChip.dataset.type);
                 }
                 
                 // Apply search filter
@@ -1267,10 +1305,20 @@
         }
 
         function resetFilters() {
-            document.querySelectorAll('.filter-chip').forEach(chip => {
+            // Reset brand filters
+            document.querySelectorAll('#brandFilters .filter-chip').forEach(chip => {
                 chip.classList.add('active');
             });
+            
+            // Reset wheel type filters
+            document.querySelectorAll('#wheelTypeFilters .filter-chip').forEach(chip => {
+                chip.classList.remove('active');
+            });
+            document.querySelector('#wheelTypeFilters .filter-chip[data-type="all"]').classList.add('active');
+            
+            // Reset search
             document.getElementById('wheelSearch').value = '';
+            
             calculate();
         }
 
@@ -1498,7 +1546,7 @@
                         search: document.getElementById('wheelSearch').value,
                         brands: Array.from(document.querySelectorAll('#brandFilters .filter-chip.active'))
                             .map(chip => chip.dataset.brand),
-                        wheelType: document.querySelector('.filter-group .filter-chip.active[data-type]')?.dataset.type
+                        wheelType: document.querySelector('#wheelTypeFilters .filter-chip.active[data-type]')?.dataset.type
                     }
                 };
                 
@@ -1551,9 +1599,14 @@
                 });
                 
                 // Set wheel type filter
-                document.querySelectorAll('.filter-group .filter-chip[data-type]').forEach(chip => {
-                    chip.classList.toggle('active', chip.dataset.type === config.filters.wheelType);
+                document.querySelectorAll('#wheelTypeFilters .filter-chip').forEach(chip => {
+                    chip.classList.remove('active');
                 });
+                if (config.filters.wheelType) {
+                    document.querySelector(`#wheelTypeFilters .filter-chip[data-type="${config.filters.wheelType}"]`).classList.add('active');
+                } else {
+                    document.querySelector('#wheelTypeFilters .filter-chip[data-type="all"]').classList.add('active');
+                }
                 
                 // Recalculate
                 calculate();
@@ -1615,7 +1668,7 @@
             document.getElementById('weight').value = '75';
             document.getElementById('height').value = '175';
             document.getElementById('power').value = '300';
-            document.getElementById('frameLevel').value = '5';
+            document.getElementById('frameLevel').value = '0';
             document.getElementById('bikeType').value = 'road';
             document.getElementById('bikeModel').value = 'zwift_carbon';
             
