@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zwift Wheel Optimizer Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <!-- Load data files -->
+    <script src="data/bikeFrames.js"></script>
+    <script src="data/wheels.js"></script>
+    <script>
+    // Data loading verification
+    console.log("Bike frames loaded:", window.bikeFrames ? "Yes" : "No");
+    console.log("Wheels loaded:", window.wheels ? "Yes" : "No");
+    
+    // Initialize empty arrays if data not loaded
+    if (!window.bikeFrames) {
+        console.warn("Bike frames not loaded - initializing empty array");
+        window.bikeFrames = [];
+    }
+    if (!window.wheels) {
+        console.warn("Wheels not loaded - initializing empty array");
+        window.wheels = [];
+    }
+    </script>
+    <style>
+        :root {
+            --primary-color: #2196F3;
+            --secondary-color: #1976D2;
+            --accent-color: #FF9800;
+            --danger-color: #F44336;
+            --success-color: #4CAF50;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        h1, h2, h3 {
+            color: var(--primary-color);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .input-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .unit-slider {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #ddd;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .unit-slider.imperial {
+            background: var(--primary-color);
+        }
+
+        .slider-handle {
+            position: absolute;
+            left: 3px;
+            top: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .unit-slider.imperial .slider-handle {
+            transform: translateX(30px);
+        }
+
+        .unit-label {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            color: #555;
+            font-size: 0.9em;
+        }
+
+        input, select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: var(--secondary-color);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .button-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .button-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .button-accent {
+            background: var(--accent-color);
+        }
+
+        .button-accent:hover {
+            background: #e68a00;
+        }
+
+        .button-danger {
+            background: var(--danger-color);
+        }
+
+        .button-danger:hover {
+            background: #d32f2f;
+        }
+
+        .button-success {
+            background: var(--success-color);
+        }
+
+        .button-success:hover {
+            background: #388e3c;
+        }
+
+        .chart-container {
+            margin: 30px 0;
+            height: 400px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .results-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .results-table th {
+            background: var(--primary-color);
+            color: white;
+            font-weight: 500;
+        }
+
+        .results-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .best {
+            background: #e8f5e9;
+            font-weight: bold;
+        }
+
+        .imperial-height-inputs {
+            display: flex;
+            gap: 5px;
+        }
+
+        .imperial-height-inputs input {
+            flex: 1;
+        }
+
+        .add-wheel-form {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        .remove-button {
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .remove-button:hover {
+            background: #d32f2f;
+        }
+
+        .disclaimer {
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: #666;
+            font-style: italic;
+        }
+
+        .filter-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f0f7ff;
+            border-radius: 8px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .filter-chip {
+            padding: 5px 10px;
+            background: #e3f2fd;
+            border-radius: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-chip:hover {
+            background: #bbdefb;
+        }
+
+        .filter-chip.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .comparison-section {
+            margin-top: 30px;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .comparison-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .comparison-card h4 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .save-load-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .tab-container {
+            margin-top: 20px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+        }
+
+        .tab-button.active {
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .tab-content {
+            padding: 20px 0;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .control-panel, .input-grid, .results-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🚴 Zwift Wheel Optimizer Pro</h1>
+
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="openTab('optimizer')">Wheel Optimizer</button>
+            <button class="tab-button" onclick="openTab('comparison')">Wheel Comparison</button>
+            <button class="tab-button" onclick="openTab('saved')">Saved Configurations</button>
+        </div>
+
+        <div class="tab-content">
+            <!-- Optimizer Tab -->
+            <div id="optimizer" class="tab-pane active">
+                <div class="control-panel">
+                    <div class="input-section">
+                        <h3>Rider & Ride Details</h3>
+                        <div class="slider-container">
+                            <div class="unit-slider" id="unitSlider">
+                                <div class="slider-handle"></div>
+                            </div>
+                            <span class="unit-label" id="unitLabel">Metric</span>
+                        </div>
+
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label id="distanceLabel">Distance (km)</label>
+                                <input type="number" id="distance" value="40" step="0.1">
+                            </div>
+
+                            <div class="input-group">
+                                <label id="elevationLabel">Elevation (m)</label>
+                                <input type="number" id="elevation" value="1000">
+                            </div>
+
+                            <div class="input-group">
+                                <label id="weightLabel">Weight (kg)</label>
+                                <input type="number" id="weight" value="75" step="0.1">
+                            </div>
+
+                            <div class="input-group metric-height">
+                                <label>Height (cm)</label>
+                                <input type="number" id="height" value="175">
+                            </div>
+
+                            <div class="input-group imperial-height" style="display: none;">
+                                <label>Height (ft/in)</label>
+                                <div class="imperial-height-inputs">
+                                    <input type="number" id="heightFeet" placeholder="Feet" min="0">
+                                    <input type="number" id="heightInches" placeholder="Inches" min="0" max="11.9" step="0.1">
+                                </div>
+                            </div>
+
+                            <div class="input-group">
+                                <label id="powerLabel">Avg Power (W)</label>
+                                <input type="number" id="power" value="300">
+                            </div>
+
+                            <div class="input-group">
+                                <label>Frame Level</label>
+                                <select id="frameLevel">
+                                    <option value="0">Level 0</option>
+                                    <option value="5" selected>Level 5</option>
+                                </select>
+                            </div>
+
+                            <div class="input-group">
+                                <label>Bike Type</label>
+                                <select id="bikeType">
+                                    <option value="road">Road Bike</option>
+                                    <option value="tt">Time Trial (TT)</option>
+                                    <option value="gravel">Gravel Bike</option>
+                                    <option value="mtb">Mountain Bike</option>
+                                    <option value="halo">Halo Bike</option>
+                                    <option value="funny">Funny Bike</option>
+                                    <option value="handcycle">Handcycle</option>
+                                </select>
+                            </div>
+
+                            <div class="input-group">
+                                <label>Bike Model</label>
+                                <select id="bikeModel">
+                                    <option value="zwift_carbon">Zwift Carbon (Default)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="button-group">
+                            <button onclick="calculate()">Calculate Best Wheels</button>
+                            <button class="button-secondary" onclick="resetInputs()">Reset</button>
+                        </div>
+                    </div>
+
+                    <div class="input-section">
+                        <h3>Wheel Filters</h3>
+                        <div class="filter-section">
+                            <div class="input-group">
+                                <label>Search Wheels</label>
+                                <input type="text" id="wheelSearch" placeholder="Search wheel names...">
+                            </div>
+                            
+                            <h4>Brands</h4>
+                            <div class="filter-group" id="brandFilters">
+                                <!-- Dynamically populated -->
+                            </div>
+                            
+                            <h4>Wheel Types</h4>
+                            <div class="filter-group">
+                                <div class="filter-chip active" data-type="all">All Wheels</div>
+                                <div class="filter-chip" data-type="aero">Aero Wheels</div>
+                                <div class="filter-chip" data-type="climb">Climbing Wheels</div>
+                                <div class="filter-chip" data-type="allround">All-Rounders</div>
+                            </div>
+                        </div>
+
+                        <div class="button-group">
+                            <button class="button-accent" onclick="applyFilters()">Apply Filters</button>
+                            <button class="button-secondary" onclick="resetFilters()">Reset Filters</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="wheelChart"></canvas>
+                </div>
+
+                <div class="results-container">
+                    <div>
+                        <h3>Top Wheel Recommendations</h3>
+                        <table class="results-table" id="results"></table>
+                    </div>
+                    <div>
+                        <h3>Performance Summary</h3>
+                        <table class="results-table" id="summary"></table>
+                    </div>
+                </div>
+
+                <div class="add-wheel-form">
+                    <h3>Add Custom Wheels</h3>
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label>Wheel Name</label>
+                            <input type="text" id="wheelName" placeholder="Enter wheel name">
+                        </div>
+                        <div class="input-group">
+                            <label>Brand</label>
+                            <input type="text" id="wheelBrand" placeholder="Enter brand">
+                        </div>
+                        <div class="input-group">
+                            <label>Flat Savings (seconds)</label>
+                            <input type="number" id="wheelFlat" placeholder="Enter flat savings">
+                        </div>
+                        <div class="input-group">
+                            <label>Climb Savings (seconds)</label>
+                            <input type="number" id="wheelClimb" placeholder="Enter climb savings">
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button onclick="addWheel()">Add Wheel</button>
+                        <button class="button-secondary" onclick="clearCustomForm()">Clear</button>
+                    </div>
+                    <div class="disclaimer">
+                        Note: Custom wheels are saved in your browser's local storage and will persist between sessions.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparison Tab -->
+            <div id="comparison" class="tab-pane">
+                <h2>Wheel Comparison Tool</h2>
+                <p>Select up to 4 wheels to compare their performance</p>
+                
+                <div class="input-grid">
+                    <div class="input-group">
+                        <label>Wheel 1</label>
+                        <select id="compareWheel1">
+                            <option value="">Select a wheel</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Wheel 2</label>
+                        <select id="compareWheel2">
+                            <option value="">Select a wheel</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Wheel 3</label>
+                        <select id="compareWheel3">
+                            <option value="">Select a wheel</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Wheel 4</label>
+                        <select id="compareWheel4">
+                            <option value="">Select a wheel</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button onclick="compareWheels()">Compare Wheels</button>
+                    <button class="button-secondary" onclick="clearComparison()">Clear</button>
+                </div>
+                
+                <div class="comparison-section">
+                    <h3>Comparison Results</h3>
+                    <div class="chart-container">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                    
+                    <div class="comparison-grid" id="comparisonResults">
+                        <!-- Will be populated with comparison cards -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Saved Configurations Tab -->
+            <div id="saved" class="tab-pane">
+                <h2>Saved Configurations</h2>
+                <p>Save your favorite wheel setups for different courses and conditions</p>
+                
+                <div class="save-load-section">
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label>Configuration Name</label>
+                            <input type="text" id="configName" placeholder="e.g., 'Flat TT Course'">
+                        </div>
+                        <div class="input-group">
+                            <label>Description</label>
+                            <input type="text" id="configDesc" placeholder="Optional description">
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="button-success" onclick="saveConfiguration()">Save Current Setup</button>
+                        <button class="button-secondary" onclick="clearSavedForm()">Clear Form</button>
+                    </div>
+                </div>
+                
+                <h3>Your Saved Configurations</h3>
+                <table class="results-table" id="savedConfigs">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Will be populated with saved configs -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let isMetric = true;
+        let wheelChart = null;
+        let comparisonChart = null;
+        const conversion = {
+            milesToKm: 1.60934,
+            feetToM: 0.3048,
+            lbToKg: 0.453592,
+            inToCm: 2.54
+        };
+
+        // Safe data access functions
+        function getWheels() {
+            return window.wheels || [];
+        }
+
+        function getBikeFrames() {
+            return window.bikeFrames || [];
+        }
+
+        // Load custom wheels from localStorage
+        function loadCustomWheels() {
+            try {
+                const savedWheels = localStorage.getItem('customWheels');
+                if (savedWheels) {
+                    const customWheels = JSON.parse(savedWheels);
+                    window.wheels = getWheels().filter(w => !w.custom);
+                    window.wheels.push(...customWheels);
+                }
+            } catch (e) {
+                console.error("Error loading custom wheels:", e);
+            }
+        }
+
+        // Load saved configurations from localStorage
+        function loadSavedConfigurations() {
+            try {
+                const savedConfigs = localStorage.getItem('savedConfigs');
+                if (savedConfigs) {
+                    const configs = JSON.parse(savedConfigs);
+                    const tbody = document.getElementById('savedConfigs').querySelector('tbody');
+                    tbody.innerHTML = '';
+                    
+                    configs.forEach((config, index) => {
+                        const row = tbody.insertRow();
+                        row.innerHTML = `
+                            <td>${config.name}</td>
+                            <td>${config.description || '-'}</td>
+                            <td>${new Date(config.date).toLocaleDateString()}</td>
+                            <td>
+                                <button class="button-secondary" onclick="loadConfiguration(${index})">Load</button>
+                                <button class="remove-button" onclick="deleteConfiguration(${index})">Delete</button>
+                            </td>
+                        `;
+                    });
+                }
+            } catch (e) {
+                console.error("Error loading saved configurations:", e);
+            }
+        }
+
+        // Populate bike model dropdown based on selected bike type
+        function populateBikeModels() {
+            try {
+                const bikeType = document.getElementById('bikeType').value;
+                const bikeModelSelect = document.getElementById('bikeModel');
+                
+                // Clear existing options except the default
+                bikeModelSelect.innerHTML = '<option value="zwift_carbon">Zwift Carbon (Default)</option>';
+                
+                const bikeFrames = getBikeFrames();
+                if (!bikeFrames.length) {
+                    console.warn("No bike frames available");
+                    return;
+                }
+                
+                // Filter frames by selected type
+                const filteredFrames = bikeFrames.filter(frame => frame.type === bikeType);
+                
+                // Add filtered frames to dropdown
+                filteredFrames.forEach(frame => {
+                    const option = document.createElement('option');
+                    option.value = frame.name.toLowerCase().replace(/ /g, '_');
+                    option.textContent = frame.name;
+                    bikeModelSelect.appendChild(option);
+                });
+            } catch (e) {
+                console.error("Error populating bike models:", e);
+            }
+        }
+
+        // Get bike frame performance data based on level
+        function getBikePerformance(bikeModel, level) {
+            // Default to Zwift Carbon if not found
+            const defaultPerformance = { 
+                flat: 0, 
+                climb: 0,
+                flatFactor: 1.0, 
+                climbFactor: 1.0 
+            };
+            
+            if (bikeModel === 'zwift_carbon') return defaultPerformance;
+            
+            // Find the frame in our data
+            const bikeFrames = getBikeFrames();
+            const frame = bikeFrames.find(f => 
+                f.name.toLowerCase().replace(/ /g, '_') === bikeModel
+            );
+            
+            if (!frame) return defaultPerformance;
+            
+            // Return the appropriate performance data based on level
+            return {
+                flat: level === '5' ? frame.flat5 : frame.flat0,
+                climb: level === '5' ? frame.climb5 : frame.climb0,
+                flatFactor: frame.flatFactor,
+                climbFactor: frame.climbFactor
+            };
+        }
+
+        // Initialize the application
+        function init() {
+            try {
+                loadCustomWheels();
+                loadSavedConfigurations();
+                updateUnitDisplay();
+                populateBrandFilters();
+                populateComparisonDropdowns();
+                populateBikeModels();
+                calculate();
+                
+                // Update bike models when bike type changes
+                document.getElementById('bikeType').addEventListener('change', populateBikeModels);
+            } catch (e) {
+                console.error("Initialization error:", e);
+            }
+        }
+
+        // Unit conversion functions
+        document.getElementById('unitSlider').addEventListener('click', toggleUnits);
+
+        function toggleUnits() {
+            isMetric = !isMetric;
+            updateUnitDisplay();
+            convertValues();
+            calculate();
+        }
+
+        function updateUnitDisplay() {
+            const slider = document.getElementById('unitSlider');
+            const labels = {
+                distance: ['km', 'mi'],
+                elevation: ['m', 'ft'],
+                weight: ['kg', 'lb']
+            };
+
+            Object.entries(labels).forEach(([id, units]) => {
+                document.getElementById(`${id}Label`).textContent = 
+                    `${id.charAt(0).toUpperCase() + id.slice(1)} (${units[isMetric ? 0 : 1]})`;
+            });
+
+            const metricHeightGroup = document.querySelector('.metric-height');
+            const imperialHeightGroup = document.querySelector('.imperial-height');
+            if (isMetric) {
+                metricHeightGroup.style.display = 'flex';
+                imperialHeightGroup.style.display = 'none';
+            } else {
+                metricHeightGroup.style.display = 'none';
+                imperialHeightGroup.style.display = 'flex';
+            }
+
+            slider.classList.toggle('imperial', !isMetric);
+            document.getElementById('unitLabel').textContent = isMetric ? 'Metric' : 'Imperial';
+        }
+
+        function convertValues() {
+            const elements = [
+                { id: 'distance', factor: conversion.milesToKm },
+                { id: 'elevation', factor: conversion.feetToM },
+                { id: 'weight', factor: conversion.lbToKg }
+            ];
+
+            elements.forEach(({ id, factor }) => {
+                const element = document.getElementById(id);
+                let value = parseFloat(element.value);
+                value = isMetric ? value * factor : value / factor;
+                element.value = value.toFixed(1);
+            });
+
+            if (isMetric) {
+                // Convert imperial to metric for height
+                const feet = parseFloat(document.getElementById('heightFeet').value) || 0;
+                const inches = parseFloat(document.getElementById('heightInches').value) || 0;
+                const totalInches = feet * 12 + inches;
+                const cm = totalInches * conversion.inToCm;
+                document.getElementById('height').value = cm.toFixed(0);
+            } else {
+                // Convert metric to imperial for height
+                const cm = parseFloat(document.getElementById('height').value) || 0;
+                const totalInches = cm / conversion.inToCm;
+                const feet = Math.floor(totalInches / 12);
+                const inches = totalInches % 12;
+                document.getElementById('heightFeet').value = feet.toFixed(0);
+                document.getElementById('heightInches').value = inches.toFixed(1);
+            }
+        }
+
+        // Main calculation function
+        function calculate() {
+            try {
+                const inputs = {
+                    bikeType: document.getElementById('bikeType').value,
+                    bikeModel: document.getElementById('bikeModel').value,
+                    frameLevel: document.getElementById('frameLevel').value,
+                    distance: parseInput('distance'), // in km
+                    elevation: parseInput('elevation'), // in meters
+                    weight: parseInput('weight'), // in kg
+                    height: isMetric ? parseInput('height') : 
+                        (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm, // in cm
+                    power: parseInput('power') // in watts
+                };
+
+                if (!isMetric) {
+                    inputs.distance *= conversion.milesToKm; // convert miles to km
+                    inputs.elevation *= conversion.feetToM; // convert feet to meters
+                    inputs.weight *= conversion.lbToKg; // convert lbs to kg
+                }
+
+                // Get bike frame performance data for the selected level
+                const selectedBike = getBikePerformance(inputs.bikeModel, inputs.frameLevel);
+                const baselineBike = getBikePerformance('zwift_carbon', inputs.frameLevel);
+
+                // Calculate frame savings vs baseline
+                const frameFlatSavings = selectedBike.flat - baselineBike.flat;
+                const frameClimbSavings = selectedBike.climb - baselineBike.climb;
+
+                // Calculate the climbing ratio (how much of the ride is climbing)
+                const climbingRatio = (inputs.elevation / 1000) / (inputs.distance / 40) * (inputs.weight / 75);
+                const normalizedClimbingRatio = Math.min(Math.max(climbingRatio, 0), 1); // Ensure it's between 0 and 1
+
+                // Calculate base speed based on weight and power
+                const baseSpeed = 25 * Math.sqrt(inputs.power / 300) / Math.sqrt(inputs.weight / 75);
+
+                // Filter wheels for the selected bike type
+                const wheels = getWheels();
+                let relevantWheels = wheels.filter(wheel => 
+                    wheel.bikeType.includes(inputs.bikeType)
+                );
+                
+                // Apply any active filters
+                relevantWheels = applyActiveFilters(relevantWheels);
+
+                // Calculate total savings for each wheel
+                const results = relevantWheels.map(wheel => {
+                    // Get the performance data for this wheel
+                    const performance = wheel.performance[inputs.bikeType] || wheel.performance.road || { flat: 0, climb: 0 };
+                    
+                    // Adjust for distance, weight, and height
+                    const distanceFactor = inputs.distance / 40; // Normalize to 40km
+                    const weightFactor = inputs.weight / 75; // Normalize to 75kg
+                    const heightFactor = 1 + (inputs.height - 175) * 0.002; // Adjust for height
+                    
+                    // Calculate wheel savings (vs baseline wheels)
+                    const wheelFlatSavings = performance.flat * distanceFactor * weightFactor * heightFactor;
+                    const wheelClimbSavings = performance.climb * distanceFactor * weightFactor * heightFactor;
+                    
+                    // Combine frame and wheel savings
+                    const totalFlatSavings = frameFlatSavings + wheelFlatSavings;
+                    const totalClimbSavings = frameClimbSavings + wheelClimbSavings;
+                    const totalSavings = (totalFlatSavings * (1 - normalizedClimbingRatio)) + 
+                                        (totalClimbSavings * normalizedClimbingRatio);
+
+                    // Calculate estimated speed - now accounts for weight
+                    const baseTime = (inputs.distance / baseSpeed) * 3600; // Base time in seconds
+                    const adjustedTime = baseTime - totalSavings;
+                    const estimatedSpeed = (inputs.distance / (adjustedTime / 3600)).toFixed(1);
+
+                    return {
+                        ...wheel,
+                        frameFlatSavings: frameFlatSavings,
+                        frameClimbSavings: frameClimbSavings,
+                        wheelFlatSavings: wheelFlatSavings,
+                        wheelClimbSavings: wheelClimbSavings,
+                        totalFlatSavings: totalFlatSavings,
+                        totalClimbSavings: totalClimbSavings,
+                        totalSavings: totalSavings,
+                        estimatedSpeed: estimatedSpeed
+                    };
+                }).sort((a, b) => b.totalSavings - a.totalSavings);
+
+                // Calculate base time (without any savings)
+                const baseTime = (inputs.distance / baseSpeed) * 3600; // Base time in seconds
+
+                // Update the chart and table
+                updateChart(results);
+                updateTable(results, baseTime);
+                updateSummary(results, baseTime, normalizedClimbingRatio, selectedBike, baselineBike);
+            } catch (e) {
+                console.error("Calculation error:", e);
+            }
+        }
+
+        function parseInput(id) {
+            const value = parseFloat(document.getElementById(id).value);
+            return isNaN(value) ? 0 : value;
+        }
+
+        function updateChart(results) {
+            try {
+                const ctx = document.getElementById('wheelChart').getContext('2d');
+                
+                if (wheelChart) wheelChart.destroy();
+
+                // Prepare data for chart
+                const flatData = results.map(wheel => wheel.totalFlatSavings);
+                const climbData = results.map(wheel => wheel.totalClimbSavings);
+                const colors = results.map(wheel => 
+                    wheel.totalSavings === Math.max(...results.map(r => r.totalSavings)) 
+                    ? 'rgba(33, 150, 243, 0.8)' 
+                    : 'rgba(200, 200, 200, 0.6)'
+                );
+
+                wheelChart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Wheel Performance',
+                            data: results.map(wheel => ({
+                                x: wheel.totalFlatSavings,
+                                y: wheel.totalClimbSavings,
+                                name: wheel.name
+                            })),
+                            backgroundColor: colors,
+                            borderColor: 'rgba(0, 0, 0, 0.1)',
+                            borderWidth: 1,
+                            pointRadius: 7
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: { 
+                                    display: true, 
+                                    text: 'Total Flat Savings (seconds)', 
+                                    color: '#666',
+                                    font: { weight: 'bold' }
+                                },
+                                min: Math.min(...flatData) - 10,
+                                max: Math.max(...flatData) + 10,
+                                grid: { color: '#eee' }
+                            },
+                            y: {
+                                title: { 
+                                    display: true, 
+                                    text: 'Total Climb Savings (seconds)', 
+                                    color: '#666',
+                                    font: { weight: 'bold' }
+                                },
+                                min: Math.min(...climbData) - 10,
+                                max: Math.max(...climbData) + 10,
+                                grid: { color: '#eee' }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => {
+                                        const wheel = results.find(w => w.name === ctx.raw.name);
+                                        return [
+                                            wheel.name,
+                                            `Frame Flat: ${wheel.frameFlatSavings.toFixed(1)}s`,
+                                            `Frame Climb: ${wheel.frameClimbSavings.toFixed(1)}s`,
+                                            `Wheel Flat: ${wheel.wheelFlatSavings.toFixed(1)}s`,
+                                            `Wheel Climb: ${wheel.wheelClimbSavings.toFixed(1)}s`,
+                                            `Total Flat: ${wheel.totalFlatSavings.toFixed(1)}s`,
+                                            `Total Climb: ${wheel.totalClimbSavings.toFixed(1)}s`,
+                                            `Total: ${wheel.totalSavings.toFixed(1)}s`,
+                                            `Est. Speed: ${wheel.estimatedSpeed} km/h`
+                                        ];
+                                    }
+                                }
+                            },
+                            legend: { display: false },
+                            datalabels: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Chart update error:", e);
+            }
+        }
+
+        function updateTable(results, baseTime) {
+            try {
+                const table = document.getElementById('results');
+                table.innerHTML = `
+                    <tr>
+                        <th>Wheel</th>
+                        <th>Frame Savings</th>
+                        <th>Wheel Savings</th>
+                        <th>Total Savings</th>
+                        <th>Est. Speed</th>
+                        <th>Est. Time</th>
+                        <th>Actions</th>
+                    </tr>
+                `;
+
+                results.forEach((wheel, index) => {
+                    const row = table.insertRow();
+                    const totalTime = baseTime - wheel.totalSavings;
+                    
+                    row.innerHTML = `
+                        <td>${wheel.name}</td>
+                        <td>${formatSavings(wheel.frameFlatSavings, wheel.frameClimbSavings)}</td>
+                        <td>${formatSavings(wheel.wheelFlatSavings, wheel.wheelClimbSavings)}</td>
+                        <td>${formatSavings(wheel.totalFlatSavings, wheel.totalClimbSavings)}</td>
+                        <td>${wheel.estimatedSpeed} km/h</td>
+                        <td>${formatTime(totalTime)}</td>
+                        <td>
+                            ${wheel.custom ? `<button class="remove-button" onclick="removeWheel('${wheel.name}')">Remove</button>` : ''}
+                        </td>
+                    `;
+                    if (index === 0) row.classList.add('best');
+                });
+            } catch (e) {
+                console.error("Table update error:", e);
+            }
+        }
+
+        // Helper function to format savings display
+        function formatSavings(flat, climb) {
+            return `${flat.toFixed(1)}s (F)<br>${climb.toFixed(1)}s (C)`;
+        }
+
+        // Update the summary to show frame comparison
+        function updateSummary(results, baseTime, climbingRatio, selectedBike, baselineBike) {
+            try {
+                const table = document.getElementById('summary');
+                const bestWheel = results[0] || {};
+                const estimatedSpeed = bestWheel.estimatedSpeed || 'N/A';
+                
+                table.innerHTML = `
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                    </tr>
+                    <tr>
+                        <td>Base Time (Zwift Carbon)</td>
+                        <td>${formatTime(baseTime)}</td>
+                    </tr>
+                    <tr>
+                        <td>Frame Only Time</td>
+                        <td>${formatTime(baseTime - ((bestWheel.frameFlatSavings * (1 - climbingRatio)) + (bestWheel.frameClimbSavings * climbingRatio)))}</td>
+                    </tr>
+                    <tr>
+                        <td>Best Wheel Time</td>
+                        <td>${formatTime(baseTime - (bestWheel.totalSavings || 0))}</td>
+                    </tr>
+                    <tr>
+                        <td>Estimated Speed</td>
+                        <td>${estimatedSpeed} km/h</td>
+                    </tr>
+                    <tr>
+                        <td>Frame Savings</td>
+                        <td>${formatSavings(bestWheel.frameFlatSavings, bestWheel.frameClimbSavings)}</td>
+                    </tr>
+                    <tr>
+                        <td>Wheel Savings</td>
+                        <td>${formatSavings(bestWheel.wheelFlatSavings, bestWheel.wheelClimbSavings)}</td>
+                    </tr>
+                    <tr>
+                        <td>Course Climbing Ratio</td>
+                        <td>${(climbingRatio * 100).toFixed(1)}%</td>
+                    </tr>
+                    <tr>
+                        <td>Selected Bike Model</td>
+                        <td>${document.getElementById('bikeModel').selectedOptions[0].text}</td>
+                    </tr>
+                    <tr>
+                        <td>Frame Level</td>
+                        <td>${document.getElementById('frameLevel').value}</td>
+                    </tr>
+                `;
+            } catch (e) {
+                console.error("Summary update error:", e);
+            }
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${hours}h ${minutes}m ${secs}s`;
+        }
+
+        // Wheel management functions
+        function addWheel() {
+            try {
+                const wheelName = document.getElementById('wheelName').value.trim();
+                const wheelBrand = document.getElementById('wheelBrand').value.trim();
+                const wheelFlat = parseFloat(document.getElementById('wheelFlat').value);
+                const wheelClimb = parseFloat(document.getElementById('wheelClimb').value);
+                const bikeType = document.getElementById('bikeType').value;
+
+                if (!wheelName || isNaN(wheelFlat) || isNaN(wheelClimb)) {
+                    alert("Please fill in all required fields with valid values.");
+                    return;
+                }
+
+                // Add the new wheel to the wheels array
+                const newWheel = { 
+                    name: wheelName, 
+                    brand: wheelBrand,
+                    type: "allround",
+                    performance: {
+                        [bikeType]: {
+                            flat: wheelFlat,
+                            climb: wheelClimb
+                        }
+                    },
+                    bikeType: [bikeType],
+                    custom: true 
+                };
+                
+                window.wheels.push(newWheel);
+                
+                // Save custom wheels to localStorage
+                const customWheels = window.wheels.filter(w => w.custom);
+                localStorage.setItem('customWheels', JSON.stringify(customWheels));
+
+                // Clear the form
+                clearCustomForm();
+
+                // Re-run calculations
+                calculate();
+                populateComparisonDropdowns();
+            } catch (e) {
+                console.error("Error adding wheel:", e);
+            }
+        }
+
+        function removeWheel(wheelName) {
+            try {
+                window.wheels = window.wheels.filter(wheel => wheel.name !== wheelName);
+                
+                // Update localStorage
+                const customWheels = window.wheels.filter(w => w.custom);
+                localStorage.setItem('customWheels', JSON.stringify(customWheels));
+                
+                calculate();
+                populateComparisonDropdowns();
+            } catch (e) {
+                console.error("Error removing wheel:", e);
+            }
+        }
+
+        function clearCustomForm() {
+            document.getElementById('wheelName').value = '';
+            document.getElementById('wheelBrand').value = '';
+            document.getElementById('wheelFlat').value = '';
+            document.getElementById('wheelClimb').value = '';
+        }
+
+        // Filter functions
+        function populateBrandFilters() {
+            try {
+                const brandFilters = document.getElementById('brandFilters');
+                brandFilters.innerHTML = '';
+                
+                const wheels = getWheels();
+                const brands = [...new Set(wheels.map(w => w.brand).filter(b => b))];
+                
+                brands.forEach(brand => {
+                    const chip = document.createElement('div');
+                    chip.className = 'filter-chip active';
+                    chip.textContent = brand;
+                    chip.dataset.brand = brand;
+                    chip.onclick = function() {
+                        this.classList.toggle('active');
+                    };
+                    brandFilters.appendChild(chip);
+                });
+            } catch (e) {
+                console.error("Error populating brand filters:", e);
+            }
+        }
+
+        function applyActiveFilters(wheels) {
+            try {
+                // Apply brand filters
+                const activeBrands = Array.from(document.querySelectorAll('#brandFilters .filter-chip.active'))
+                    .map(chip => chip.dataset.brand);
+                
+                if (activeBrands.length > 0) {
+                    wheels = wheels.filter(wheel => activeBrands.includes(wheel.brand));
+                }
+                
+                // Apply wheel type filters
+                const activeType = document.querySelector('.filter-group .filter-chip.active[data-type]')?.dataset.type;
+                if (activeType && activeType !== 'all') {
+                    wheels = wheels.filter(wheel => wheel.type === activeType);
+                }
+                
+                // Apply search filter
+                const searchTerm = document.getElementById('wheelSearch').value.toLowerCase();
+                if (searchTerm) {
+                    wheels = wheels.filter(wheel => 
+                        wheel.name.toLowerCase().includes(searchTerm) || 
+                        (wheel.brand && wheel.brand.toLowerCase().includes(searchTerm))
+                    );
+                }
+                
+                return wheels;
+            } catch (e) {
+                console.error("Error applying filters:", e);
+                return [];
+            }
+        }
+
+        function applyFilters() {
+            calculate();
+        }
+
+        function resetFilters() {
+            document.querySelectorAll('.filter-chip').forEach(chip => {
+                chip.classList.add('active');
+            });
+            document.getElementById('wheelSearch').value = '';
+            calculate();
+        }
+
+        // Comparison functions
+        function populateComparisonDropdowns() {
+            try {
+                const selectors = [
+                    'compareWheel1', 'compareWheel2', 
+                    'compareWheel3', 'compareWheel4'
+                ];
+                
+                // Get unique wheel names
+                const wheels = getWheels();
+                const wheelNames = [...new Set(wheels.map(w => w.name))].sort();
+                
+                selectors.forEach(selector => {
+                    const select = document.getElementById(selector);
+                    select.innerHTML = '<option value="">Select a wheel</option>';
+                    
+                    wheelNames.forEach(name => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        select.appendChild(option);
+                    });
+                });
+            } catch (e) {
+                console.error("Error populating comparison dropdowns:", e);
+            }
+        }
+
+        function compareWheels() {
+            try {
+                const selectors = [
+                    'compareWheel1', 'compareWheel2', 
+                    'compareWheel3', 'compareWheel4'
+                ];
+                
+                const selectedWheels = selectors
+                    .map(selector => document.getElementById(selector).value)
+                    .filter(name => name);
+                
+                if (selectedWheels.length < 2) {
+                    alert("Please select at least 2 wheels to compare");
+                    return;
+                }
+                
+                const bikeType = document.getElementById('bikeType').value;
+                const bikeModel = document.getElementById('bikeModel').value;
+                const frameLevel = document.getElementById('frameLevel').value;
+                
+                // Get bike frame performance factors
+                const bikePerformance = getBikePerformance(bikeModel, frameLevel);
+                
+                // Get data for selected wheels
+                const wheels = getWheels();
+                const wheelData = selectedWheels.map(name => {
+                    // Find wheel
+                    const wheel = wheels.find(w => w.name === name && w.bikeType.includes(bikeType));
+                    
+                    // Get performance data
+                    const performance = wheel.performance[bikeType] || wheel.performance.road || { flat: 0, climb: 0 };
+                    
+                    return {
+                        name: wheel.name,
+                        brand: wheel.brand,
+                        flat: performance.flat * bikePerformance.flatFactor,
+                        climb: performance.climb * bikePerformance.climbFactor
+                    };
+                });
+                
+                updateComparisonChart(wheelData);
+                updateComparisonCards(wheelData);
+            } catch (e) {
+                console.error("Error comparing wheels:", e);
+            }
+        }
+
+        function updateComparisonChart(wheelData) {
+            try {
+                const ctx = document.getElementById('comparisonChart').getContext('2d');
+                
+                if (comparisonChart) comparisonChart.destroy();
+
+                comparisonChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: wheelData.map(w => w.name),
+                        datasets: [
+                            {
+                                label: 'Flat Savings (seconds)',
+                                data: wheelData.map(w => w.flat),
+                                backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Climb Savings (seconds)',
+                                data: wheelData.map(w => w.climb),
+                                backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Savings (seconds)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Wheel Performance Comparison',
+                                font: {
+                                    size: 16
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.raw.toFixed(1)}s`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Error updating comparison chart:", e);
+            }
+        }
+
+        function updateComparisonCards(wheelData) {
+            try {
+                const container = document.getElementById('comparisonResults');
+                container.innerHTML = '';
+                
+                wheelData.forEach(wheel => {
+                    const card = document.createElement('div');
+                    card.className = 'comparison-card';
+                    
+                    const flatPercentage = (wheel.flat / (wheel.flat + wheel.climb) * 100).toFixed(1);
+                    const climbPercentage = (wheel.climb / (wheel.flat + wheel.climb) * 100).toFixed(1);
+                    
+                    card.innerHTML = `
+                        <h4>${wheel.name}</h4>
+                        <p><strong>Brand:</strong> ${wheel.brand || 'Unknown'}</p>
+                        <p><strong>Flat Savings:</strong> ${wheel.flat.toFixed(1)}s (${flatPercentage}%)</p>
+                        <p><strong>Climb Savings:</strong> ${wheel.climb.toFixed(1)}s (${climbPercentage}%)</p>
+                        <p><strong>Total Savings:</strong> ${(wheel.flat + wheel.climb).toFixed(1)}s</p>
+                        <div class="button-group" style="margin-top: 10px;">
+                            <button class="button-secondary" onclick="addToCurrentSetup('${wheel.name}')">Add to Current Setup</button>
+                        </div>
+                    `;
+                    
+                    container.appendChild(card);
+                });
+            } catch (e) {
+                console.error("Error updating comparison cards:", e);
+            }
+        }
+
+        function clearComparison() {
+            ['compareWheel1', 'compareWheel2', 'compareWheel3', 'compareWheel4'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+            document.getElementById('comparisonResults').innerHTML = '';
+            if (comparisonChart) {
+                comparisonChart.destroy();
+                comparisonChart = null;
+            }
+        }
+
+        function addToCurrentSetup(wheelName) {
+            // Find first empty comparison slot
+            const selectors = [
+                'compareWheel1', 'compareWheel2', 
+                'compareWheel3', 'compareWheel4'
+            ];
+            
+            for (const selector of selectors) {
+                const select = document.getElementById(selector);
+                if (!select.value) {
+                    select.value = wheelName;
+                    break;
+                }
+            }
+        }
+
+        // Configuration management
+        function saveConfiguration() {
+            try {
+                const name = document.getElementById('configName').value.trim();
+                const description = document.getElementById('configDesc').value.trim();
+                
+                if (!name) {
+                    alert("Please enter a name for this configuration");
+                    return;
+                }
+                
+                const config = {
+                    name,
+                    description,
+                    date: new Date().toISOString(),
+                    inputs: {
+                        distance: document.getElementById('distance').value,
+                        elevation: document.getElementById('elevation').value,
+                        weight: document.getElementById('weight').value,
+                        height: document.getElementById('height').value,
+                        power: document.getElementById('power').value,
+                        bikeType: document.getElementById('bikeType').value,
+                        bikeModel: document.getElementById('bikeModel').value,
+                        frameLevel: document.getElementById('frameLevel').value,
+                        isMetric: isMetric
+                    },
+                    filters: {
+                        search: document.getElementById('wheelSearch').value,
+                        brands: Array.from(document.querySelectorAll('#brandFilters .filter-chip.active'))
+                            .map(chip => chip.dataset.brand),
+                        wheelType: document.querySelector('.filter-group .filter-chip.active[data-type]')?.dataset.type
+                    }
+                };
+                
+                // Get saved configs or initialize empty array
+                const savedConfigs = JSON.parse(localStorage.getItem('savedConfigs') || '[]');
+                savedConfigs.push(config);
+                localStorage.setItem('savedConfigs', JSON.stringify(savedConfigs));
+                
+                // Refresh the saved configs list
+                loadSavedConfigurations();
+                clearSavedForm();
+                
+                alert(`Configuration "${name}" saved successfully!`);
+            } catch (e) {
+                console.error("Error saving configuration:", e);
+            }
+        }
+
+        function loadConfiguration(index) {
+            try {
+                const savedConfigs = JSON.parse(localStorage.getItem('savedConfigs') || '[]');
+                const config = savedConfigs[index];
+                
+                if (!config) {
+                    alert("Configuration not found");
+                    return;
+                }
+                
+                // Set inputs
+                document.getElementById('distance').value = config.inputs.distance;
+                document.getElementById('elevation').value = config.inputs.elevation;
+                document.getElementById('weight').value = config.inputs.weight;
+                document.getElementById('height').value = config.inputs.height;
+                document.getElementById('power').value = config.inputs.power;
+                document.getElementById('bikeType').value = config.inputs.bikeType;
+                document.getElementById('bikeModel').value = config.inputs.bikeModel;
+                document.getElementById('frameLevel').value = config.inputs.frameLevel;
+                
+                // Set units
+                if (config.inputs.isMetric !== isMetric) {
+                    toggleUnits();
+                }
+                
+                // Set filters
+                document.getElementById('wheelSearch').value = config.filters.search || '';
+                
+                // Set brand filters
+                document.querySelectorAll('#brandFilters .filter-chip').forEach(chip => {
+                    chip.classList.toggle('active', config.filters.brands.includes(chip.dataset.brand));
+                });
+                
+                // Set wheel type filter
+                document.querySelectorAll('.filter-group .filter-chip[data-type]').forEach(chip => {
+                    chip.classList.toggle('active', chip.dataset.type === config.filters.wheelType);
+                });
+                
+                // Recalculate
+                calculate();
+                
+                // Switch to optimizer tab
+                openTab('optimizer');
+            } catch (e) {
+                console.error("Error loading configuration:", e);
+            }
+        }
+
+        function deleteConfiguration(index) {
+            if (!confirm("Are you sure you want to delete this configuration?")) {
+                return;
+            }
+            
+            try {
+                const savedConfigs = JSON.parse(localStorage.getItem('savedConfigs') || '[]');
+                savedConfigs.splice(index, 1);
+                localStorage.setItem('savedConfigs', JSON.stringify(savedConfigs));
+                
+                loadSavedConfigurations();
+            } catch (e) {
+                console.error("Error deleting configuration:", e);
+            }
+        }
+
+        function clearSavedForm() {
+            document.getElementById('configName').value = '';
+            document.getElementById('configDesc').value = '';
+        }
+
+        // Tab management
+        function openTab(tabName) {
+            // Hide all tab panes
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            
+            // Deactivate all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Activate selected tab
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`.tab-button[onclick="openTab('${tabName}')"]`).classList.add('active');
+            
+            // Special handling for certain tabs
+            if (tabName === 'comparison') {
+                populateComparisonDropdowns();
+            }
+        }
+
+        // Utility functions
+        function resetInputs() {
+            document.getElementById('distance').value = '40';
+            document.getElementById('elevation').value = '1000';
+            document.getElementById('weight').value = '75';
+            document.getElementById('height').value = '175';
+            document.getElementById('power').value = '300';
+            document.getElementById('frameLevel').value = '5';
+            document.getElementById('bikeType').value = 'road';
+            document.getElementById('bikeModel').value = 'zwift_carbon';
+            
+            if (!isMetric) {
+                toggleUnits();
+            }
+            
+            calculate();
+        }
+
+        // Initialize the app when the page loads
+        window.onload = init;
+    </script>
+</body>
+</html>
