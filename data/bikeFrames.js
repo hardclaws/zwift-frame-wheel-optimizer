@@ -80,6 +80,8 @@ const bikeFrames = [
     { name: "Zwift Carbon", type: "road", flatFactor: 1.000, climbFactor: 1.000, flat0: 0, flat5: 26.544979806976173, climb0: 0, climb5: 35.7852882703777 },
     { name: "Zwift Safety", type: "road", flatFactor: 0.998, climbFactor: 0.988, flat0: -6.281189375175838, flat5: 20.92265645017592, climb0: -44.46762050646926, climb5: -9.777401166770012 },
     { name: "Zwift Steel", type: "road", flatFactor: 0.999, climbFactor: 0.991, flat0: -5.124513476250341, flat5: 21.64008833685085, climb0: -31.131245314995663, climb5: 4.6540429553820335 },
+    { name: "Specialized PROJECT 74", type: "road", flatFactor: 1.035, climbFactor: 1.000, flat0: 124.42318720335751, flat5: 154.42355324003418, climb0: -0.3910960466705782, climb5: 36.176384317048274 },
+    { name: "Zwift Concept Z1", type: "road", flatFactor: 1.032, climbFactor: 1.008, flat0: 114.23272611915671, flat5: 143.98418721555893, climb0: 29.99706677964953, climb5: 66.8383143760387 },
     
     // Time Trial Bikes
     { name: "BMC Timemachine01", type: "tt", flatFactor: 1.044, climbFactor: 0.987, flat0: 158.87455923083448, flat5: 207.2646079137126, climb0: -45.9146758791513, climb5: -18.068637356190994 },
