@@ -997,90 +997,77 @@
             return isNaN(value) ? 0 : value;
         }
 
-        function updateChart(results) {
-            try {
-                const ctx = document.getElementById('wheelChart').getContext('2d');
-                
-                if (wheelChart) wheelChart.destroy();
+  
+    function updateChart(results) {
+        try {
+            const ctx = document.getElementById('wheelChart').getContext('2d');
+            
+            if (wheelChart) wheelChart.destroy();
 
-                // Prepare data for chart
-                const flatData = results.map(wheel => wheel.totalFlatSavings);
-                const climbData = results.map(wheel => wheel.totalClimbSavings);
-                const colors = results.map(wheel => 
-                    wheel.totalSavings === Math.max(...results.map(r => r.totalSavings)) 
-                    ? 'rgba(33, 150, 243, 0.8)' 
-                    : 'rgba(200, 200, 200, 0.6)'
-                );
+            // Find the default wheel (Zwift 32mm Carbon)
+            const defaultWheel = results.find(w => w.name.includes("32mm Carbon")) || results[0];
+            const defaultSavings = defaultWheel ? defaultWheel.totalSavings : 0;
 
-                wheelChart = new Chart(ctx, {
-                    type: 'scatter',
-                    data: {
-                        datasets: [{
-                            label: 'Wheel Performance',
-                            data: results.map(wheel => ({
-                                x: wheel.totalFlatSavings,
-                                y: wheel.totalClimbSavings,
-                                name: wheel.name
-                            })),
-                            backgroundColor: colors,
-                            borderColor: 'rgba(0, 0, 0, 0.1)',
-                            borderWidth: 1,
-                            pointRadius: 7
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                title: { 
-                                    display: true, 
-                                    text: 'Total Flat Savings (seconds)', 
-                                    color: '#666',
-                                    font: { weight: 'bold' }
-                                },
-                                min: Math.min(...flatData) - 10,
-                                max: Math.max(...flatData) + 10,
-                                grid: { color: '#eee' }
+            // Prepare data for chart - showing savings vs default
+            const savingsData = results.map(wheel => (wheel.totalSavings - defaultSavings).toFixed(1));
+            const colors = results.map((wheel, index) => 
+                index === 0 ? 'rgba(33, 150, 243, 0.8)' : 'rgba(200, 200, 200, 0.6)'
+            );
+
+            wheelChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: results.map(wheel => wheel.name),
+                    datasets: [{
+                        label: 'Time Savings vs Default Wheels (seconds)',
+                        data: savingsData,
+                        backgroundColor: colors,
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            title: { 
+                                display: true, 
+                                text: 'Time Savings (seconds)', 
+                                color: '#666',
+                                font: { weight: 'bold' }
                             },
-                            y: {
-                                title: { 
-                                    display: true, 
-                                    text: 'Total Climb Savings (seconds)', 
-                                    color: '#666',
-                                    font: { weight: 'bold' }
-                                },
-                                min: Math.min(...climbData) - 10,
-                                max: Math.max(...climbData) + 10,
-                                grid: { color: '#eee' }
+                            beginAtZero: true,
+                            grid: { color: '#eee' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const wheel = results[context.dataIndex];
+                                    return [
+                                        `Wheel: ${wheel.name}`,
+                                        `Savings vs Default: ${context.raw}s`,
+                                        `Estimated Speed: ${wheel.estimatedSpeed} km/h`
+                                    ];
+                                }
                             }
                         },
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: ctx => {
-                                        const wheel = results.find(w => w.name === ctx.raw.name);
-                                        return [
-                                            wheel.name,
-                                            `Total Flat: ${wheel.totalFlatSavings.toFixed(1)}s`,
-                                            `Total Climb: ${wheel.totalClimbSavings.toFixed(1)}s`,
-                                            `Total: ${wheel.totalSavings.toFixed(1)}s`,
-                                            `Est. Speed: ${wheel.estimatedSpeed} km/h`
-                                        ];
-                                    }
-                                }
-                            },
-                            legend: { display: false },
-                            datalabels: {
-                                display: false
-                            }
+                        legend: { display: false },
+                        datalabels: {
+                            display: false
                         }
                     }
-                });
-            } catch (e) {
-                console.error("Chart update error:", e);
-            }
+                }
+            });
+        } catch (e) {
+            console.error("Chart update error:", e);
         }
+    }
 
         function updateTable(results, baseTime) {
             try {
