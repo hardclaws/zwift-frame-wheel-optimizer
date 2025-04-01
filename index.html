@@ -395,8 +395,6 @@
     <div class="tab-container">
         <div class="tab-buttons">
             <button class="tab-button active" onclick="openTab('optimizer')">Wheel Optimizer</button>
-            <button class="tab-button" onclick="openTab('comparison')">Wheel Comparison</button>
-            <button class="tab-button" onclick="openTab('saved')">Saved Configurations</button>
         </div>
 
         <div class="tab-content">
@@ -519,12 +517,6 @@
                         <h3>Top Wheel Recommendations</h3>
                         <table class="results-table" id="results"></table>
                     </div>
-                    <div>
-                        <h3>Performance Summary</h3>
-                        <table class="results-table" id="summary"></table>
-                    </div>
-                </div>
-
                 <div class="add-wheel-form">
                     <h3>Add Custom Wheels</h3>
                     <div class="input-grid">
@@ -1070,10 +1062,6 @@
                                         const wheel = results.find(w => w.name === ctx.raw.name);
                                         return [
                                             wheel.name,
-                                            `Frame Flat: ${wheel.frameFlatSavings.toFixed(1)}s`,
-                                            `Frame Climb: ${wheel.frameClimbSavings.toFixed(1)}s`,
-                                            `Wheel Flat: ${wheel.wheelFlatSavings.toFixed(1)}s`,
-                                            `Wheel Climb: ${wheel.wheelClimbSavings.toFixed(1)}s`,
                                             `Total Flat: ${wheel.totalFlatSavings.toFixed(1)}s`,
                                             `Total Climb: ${wheel.totalClimbSavings.toFixed(1)}s`,
                                             `Total: ${wheel.totalSavings.toFixed(1)}s`,
@@ -1099,27 +1087,42 @@
                 const table = document.getElementById('results');
                 table.innerHTML = `
                     <tr>
+                        <th>Rank</th>
                         <th>Wheel</th>
-                        <th>Frame Savings</th>
-                        <th>Wheel Savings</th>
-                        <th>Total Savings</th>
-                        <th>Est. Speed</th>
-                        <th>Est. Time</th>
+                        <th>Savings vs Default</th>
+                        <th>Savings vs Next</th>
                         <th>Actions</th>
                     </tr>
                 `;
+
+                if (results.length === 0) {
+                    const row = table.insertRow();
+                    row.innerHTML = '<td colspan="7" style="text-align: center;">No wheels match your filters</td>';
+                    return;
+                }
+
+                // Find the default wheel (Zwift 32mm Carbon)
+                const defaultWheel = results.find(w => w.name.includes("32mm Carbon")) || results[0];
+                const defaultSavings = defaultWheel ? defaultWheel.totalSavings : 0;
 
                 results.forEach((wheel, index) => {
                     const row = table.insertRow();
                     const totalTime = baseTime - wheel.totalSavings;
                     
+                    // Calculate savings vs default
+                    const savingsVsDefault = defaultWheel ? (wheel.totalSavings - defaultSavings).toFixed(1) : "N/A";
+                    
+                    // Calculate savings vs next wheel (if not last)
+                    let savingsVsNext = "-";
+                    if (index < results.length - 1) {
+                        savingsVsNext = (wheel.totalSavings - results[index + 1].totalSavings).toFixed(1);
+                    }
+
                     row.innerHTML = `
+                        <td>${index + 1}</td>
                         <td>${wheel.name}</td>
-                        <td>${formatSavings(wheel.frameFlatSavings, wheel.frameClimbSavings)}</td>
-                        <td>${formatSavings(wheel.wheelFlatSavings, wheel.wheelClimbSavings)}</td>
-                        <td>${formatSavings(wheel.totalFlatSavings, wheel.totalClimbSavings)}</td>
-                        <td>${wheel.estimatedSpeed} km/h</td>
-                        <td>${formatTime(totalTime)}</td>
+                        <td>${savingsVsDefault}s</td>
+                        <td>${savingsVsNext}s</td>
                         <td>
                             ${wheel.custom ? `<button class="remove-button" onclick="removeWheel('${wheel.name}')">Remove</button>` : ''}
                         </td>
@@ -1129,11 +1132,6 @@
             } catch (e) {
                 console.error("Table update error:", e);
             }
-        }
-
-        // Helper function to format savings display
-        function formatSavings(flat, climb) {
-            return `${flat.toFixed(1)}s (F)<br>${climb.toFixed(1)}s (C)`;
         }
 
         // Update the summary to show frame comparison
@@ -1153,24 +1151,8 @@
                         <td>${formatTime(baseTime)}</td>
                     </tr>
                     <tr>
-                        <td>Frame Only Time</td>
-                        <td>${formatTime(baseTime - (bestWheel.frameFlatSavings * (1 - climbingRatio) + bestWheel.frameClimbSavings * climbingRatio))}</td>
-                    </tr>
-                    <tr>
                         <td>Best Wheel Time</td>
                         <td>${formatTime(baseTime - (bestWheel.totalSavings || 0))}</td>
-                    </tr>
-                    <tr>
-                        <td>Estimated Speed</td>
-                        <td>${estimatedSpeed} km/h</td>
-                    </tr>
-                    <tr>
-                        <td>Frame Savings</td>
-                        <td>${formatSavings(bestWheel.frameFlatSavings, bestWheel.frameClimbSavings)}</td>
-                    </tr>
-                    <tr>
-                        <td>Wheel Savings</td>
-                        <td>${formatSavings(bestWheel.wheelFlatSavings, bestWheel.wheelClimbSavings)}</td>
                     </tr>
                     <tr>
                         <td>Course Climbing Ratio</td>
