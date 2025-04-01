@@ -235,6 +235,15 @@
             font-weight: bold;
         }
 
+        .selected-wheel {
+            background-color: #ffeb3b !important;
+            box-shadow: 0 0 8px rgba(0,0,0,0.2);
+        }
+        
+        .results-table tr.selected-wheel:hover {
+            background-color: #ffeb3b !important;
+        }
+
         .imperial-height-inputs {
             display: flex;
             gap: 5px;
@@ -997,76 +1006,117 @@
             return isNaN(value) ? 0 : value;
         }
 
-  
-    function updateChart(results) {
-        try {
-            const ctx = document.getElementById('wheelChart').getContext('2d');
-            
-            if (wheelChart) wheelChart.destroy();
+        function updateChart(results) {
+            try {
+                const ctx = document.getElementById('wheelChart').getContext('2d');
+                
+                if (wheelChart) wheelChart.destroy();
 
-            // Find the default wheel (Zwift 32mm Carbon)
-            const defaultWheel = results.find(w => w.name.includes("32mm Carbon")) || results[0];
-            const defaultSavings = defaultWheel ? defaultWheel.totalSavings : 0;
+                // Find the default wheel (Zwift 32mm Carbon)
+                const defaultWheel = results.find(w => w.name.includes("32mm Carbon")) || results[0];
+                const defaultSavings = defaultWheel ? defaultWheel.totalSavings : 0;
 
-            // Prepare data for chart - showing savings vs default
-            const savingsData = results.map(wheel => (wheel.totalSavings - defaultSavings).toFixed(1));
-            const colors = results.map((wheel, index) => 
-                index === 0 ? 'rgba(33, 150, 243, 0.8)' : 'rgba(200, 200, 200, 0.6)'
-            );
+                // Prepare data for chart - showing savings vs default
+                const savingsData = results.map(wheel => (wheel.totalSavings - defaultSavings).toFixed(1));
+                const colors = results.map((wheel, index) => 
+                    index === 0 ? 'rgba(33, 150, 243, 0.8)' : 'rgba(200, 200, 200, 0.6)'
+                );
 
-            wheelChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: results.map(wheel => wheel.name),
-                    datasets: [{
-                        label: 'Time Savings vs Default Wheels (seconds)',
-                        data: savingsData,
-                        backgroundColor: colors,
-                        borderColor: 'rgba(0, 0, 0, 0.1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            title: { 
-                                display: true, 
-                                text: 'Time Savings (seconds)', 
-                                color: '#666',
-                                font: { weight: 'bold' }
-                            },
-                            beginAtZero: true,
-                            grid: { color: '#eee' }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
+                wheelChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: results.map(wheel => wheel.name),
+                        datasets: [{
+                            label: 'Time Savings vs Default Wheels (seconds)',
+                            data: savingsData,
+                            backgroundColor: colors,
+                            borderColor: 'rgba(0, 0, 0, 0.1)',
+                            borderWidth: 1
+                        }]
                     },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const wheel = results[context.dataIndex];
-                                    return [
-                                        `Wheel: ${wheel.name}`,
-                                        `Savings vs Default: ${context.raw}s`,
-                                    ];
-                                }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                title: { 
+                                    display: true, 
+                                    text: 'Time Savings (seconds)', 
+                                    color: '#666',
+                                    font: { weight: 'bold' }
+                                },
+                                beginAtZero: true,
+                                grid: { color: '#eee' }
+                            },
+                            x: {
+                                grid: { display: false }
                             }
                         },
-                        legend: { display: false },
-                        datalabels: {
-                            display: false
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const wheel = results[context.dataIndex];
+                                        return [
+                                            `Wheel: ${wheel.name}`,
+                                            `Savings vs Default: ${context.raw}s`,
+                                        ];
+                                    }
+                                }
+                            },
+                            legend: { display: false },
+                            datalabels: {
+                                display: false
+                            }
+                        },
+                        // Add click handler for chart bars
+                        onClick: (e, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                const wheelName = results[index].name;
+                                highlightWheel(wheelName);
+                            }
                         }
                     }
-                }
-            });
-        } catch (e) {
-            console.error("Chart update error:", e);
+                });
+            } catch (e) {
+                console.error("Chart update error:", e);
+            }
         }
-    }
+
+        function highlightWheel(wheelName) {
+            // Highlight in table
+            document.querySelectorAll('#results tr').forEach(row => {
+                row.classList.remove('selected-wheel');
+            });
+            
+            // Find and highlight the row with the matching wheel name
+            const rows = document.querySelectorAll('#results tr');
+            for (let i = 0; i < rows.length; i++) {
+                if (rows[i].textContent.includes(wheelName)) {
+                    rows[i].classList.add('selected-wheel');
+                    // Scroll the row into view if needed
+                    rows[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    break;
+                }
+            }
+            
+            // Highlight in chart if available
+            if (wheelChart) {
+                // Remove previous highlights
+                wheelChart.data.datasets[0].backgroundColor = wheelChart.data.labels.map((label, i) => 
+                    i === 0 ? 'rgba(33, 150, 243, 0.8)' : 'rgba(200, 200, 200, 0.6)'
+                );
+                
+                // Find index of selected wheel
+                const wheelIndex = wheelChart.data.labels.indexOf(wheelName);
+                if (wheelIndex >= 0) {
+                    // Highlight selected bar
+                    wheelChart.data.datasets[0].backgroundColor[wheelIndex] = 'rgba(255, 159, 64, 0.8)';
+                    wheelChart.update();
+                }
+            }
+        }
 
         function updateTable(results, baseTime) {
             try {
@@ -1083,7 +1133,7 @@
 
                 if (results.length === 0) {
                     const row = table.insertRow();
-                    row.innerHTML = '<td colspan="7" style="text-align: center;">No wheels match your filters</td>';
+                    row.innerHTML = '<td colspan="5" style="text-align: center;">No wheels match your filters</td>';
                     return;
                 }
 
@@ -1093,7 +1143,6 @@
 
                 results.forEach((wheel, index) => {
                     const row = table.insertRow();
-                    const totalTime = baseTime - wheel.totalSavings;
                     
                     // Calculate savings vs default
                     const savingsVsDefault = defaultWheel ? (wheel.totalSavings - defaultSavings).toFixed(1) : "N/A";
@@ -1113,6 +1162,12 @@
                             ${wheel.custom ? `<button class="remove-button" onclick="removeWheel('${wheel.name}')">Remove</button>` : ''}
                         </td>
                     `;
+                    
+                    // Add click handler to highlight row and corresponding chart bar
+                    row.onclick = function() {
+                        highlightWheel(wheel.name);
+                    };
+                    
                     if (index === 0) row.classList.add('best');
                 });
             } catch (e) {
