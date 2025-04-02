@@ -129,8 +129,8 @@ const bikeFrames = [
     // Halo Bikes
     { name: "Cannondale R4000 Roller Blade", type: "TT", flatFactor: 1.034, climbFactor: 1.002, flat0: 120.73353750045705, flat5: 150.58748886638404, climb0: 6.922400026072915, climb5: 43.25522276178984 },
     { name: "Pinarello Espada", type: "TT", flatFactor: 1.065, climbFactor: 0.980, flat0: 231.7451408631143, flat5: 283.31238790126747, climb0: -71.68790535475706, climb5: -44.54583971580393 },
-    { name: "Specialized PROJECT 74", type: "road", flatFactor: 1.035, climbFactor: 1.000, flat0: 124.42318720335751, flat5: 154.42355324003418, climb0: -0.3910960466705782, climb5: 36.176384317048274 },
-    { name: "Zwift Concept Z1", type: "road", flatFactor: 1.032, climbFactor: 1.008, flat0: 114.23272611915671, flat5: 143.98418721555893, climb0: 29.99706677964953, climb5: 66.8383143760387 },
+  //  { name: "Specialized PROJECT 74", type: "road", flatFactor: 1.035, climbFactor: 1.000, flat0: 124.42318720335751, flat5: 154.42355324003418, climb0: -0.3910960466705782, climb5: 36.176384317048274 },
+  //  { name: "Zwift Concept Z1", type: "road", flatFactor: 1.032, climbFactor: 1.008, flat0: 114.23272611915671, flat5: 143.98418721555893, climb0: 29.99706677964953, climb5: 66.8383143760387 },
     
     // Funny Bikes
     { name: "Zwift Big Wheel", type: "funny", flatFactor: 1.000, climbFactor: 0.990, flat0: -2.1815785941752535, flat5: 25.124757500701275, climb0: -36.95857641039012, climb5: -1.7208226053516553 },
