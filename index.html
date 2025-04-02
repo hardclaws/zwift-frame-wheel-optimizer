@@ -397,6 +397,82 @@
             background-color: #f9f9f9;
         }
 
+        .brand-select-all {
+            margin-top: 5px;
+            font-size: 12px;
+            color: var(--primary-color);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .frame-levels-container {
+            margin-top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .frame-levels-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .frame-levels-table th,
+        .frame-levels-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        .frame-levels-table th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .frame-levels-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        .frame-levels-table tr:hover {
+            background-color: #e6f7ff;
+        }
+
+        .level-select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .upgrade-benefit {
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        /* Tab container styles */
+        .tab-container {
+            margin-top: 20px;
+        }
+
+        .tab-content {
+            position: relative;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         @media (max-width: 768px) {
             .control-panel, .input-grid, .results-container, .speed-time-container {
                 grid-template-columns: 1fr;
@@ -419,6 +495,7 @@
     <div class="top-controls">
         <div class="tab-buttons">
             <button class="tab-button active" onclick="openTab('optimizer')">Wheel Optimizer</button>
+            <button class="tab-button" onclick="openTab('frameLevels')">Frame Levels</button>
         </div>
         <div class="button-group">
             <button onclick="calculate()">Calculate</button>
@@ -523,14 +600,6 @@
                                     <option value="handcycle">Handcycle</option>
                                 </select>
                             </div>
-
-                            <div class="input-group">
-                                <label>Frame Level</label>
-                                <select id="frameLevel">
-                                    <option value="0" selected>Level 0</option>
-                                    <option value="5">Level 5</option>
-                                </select>
-                            </div>
                         </div>
                     </div>
 
@@ -551,11 +620,13 @@
                                 <input type="text" id="wheelSearch" placeholder="Search wheel names...">
                             </div>
                             
-                            <h4>Brands</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h4>Brands</h4>
+                                <div class="brand-select-all" onclick="toggleAllBrands('brandFilters')">Select All</div>
+                            </div>
                             <div class="filter-group" id="brandFilters">
                                 <!-- Dynamically populated -->
                             </div>
-
                         </div>
 
                         <div class="button-group">
@@ -572,11 +643,13 @@
                                 <input type="text" id="frameSearch" placeholder="Search frame names...">
                             </div>
                             
-                            <h4>Brands</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h4>Brands</h4>
+                                <div class="brand-select-all" onclick="toggleAllBrands('frameBrandFilters')">Select All</div>
+                            </div>
                             <div class="filter-group" id="frameBrandFilters">
                                 <!-- Dynamically populated -->
                             </div>
-
                         </div>
 
                         <div class="button-group">
@@ -612,7 +685,9 @@
                             <tr>
                                 <th>Rank</th>
                                 <th>Frame</th>
+                                <th>Current Level</th>
                                 <th>Time Savings</th>
+                                <th>Next Level Gain</th>
                             </tr>
                         </table>
                     </div>
@@ -647,6 +722,50 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Frame Levels Tab -->
+            <div id="frameLevels" class="tab-pane">
+                <div class="frame-levels-container">
+                    <h2>Frame Levels</h2>
+                    <p>Set the current level for each frame. The optimizer will use these levels when calculating time savings.</p>
+                    
+                    <div class="filter-section">
+                        <div class="input-group">
+                            <label>Search Frames</label>
+                            <input type="text" id="frameLevelSearch" placeholder="Search frame names..." oninput="filterFrameLevels()">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label>Filter by Bike Type</label>
+                            <select id="frameLevelTypeFilter" onchange="filterFrameLevels()">
+                                <option value="all">All Types</option>
+                                <option value="road">Road Bike</option>
+                                <option value="tt">Time Trial (TT)</option>
+                                <option value="gravel">Gravel Bike</option>
+                                <option value="mtb">Mountain Bike</option>
+                                <option value="halo">Halo Bike</option>
+                                <option value="funny">Funny Bike</option>
+                                <option value="handcycle">Handcycle</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <table class="frame-levels-table" id="frameLevelsTable">
+                        <thead>
+                            <tr>
+                                <th>Frame</th>
+                                <th>Type</th>
+                                <th>Current Level</th>
+                                <th>Level 0 Stats</th>
+                                <th>Level 5 Stats</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -671,6 +790,9 @@
             mountainous: { flatRatio: 0.3, climbRatio: 0.7 }
         };
 
+        // Frame level data storage
+        let frameLevels = {};
+
         // Safe data access functions
         function getWheels() {
             return window.wheels || [];
@@ -687,8 +809,8 @@
             });
         }
 
-        // Load custom wheels from localStorage
-        function loadCustomWheels() {
+        // Load custom wheels and frame levels from localStorage
+        function loadCustomData() {
             try {
                 const savedWheels = localStorage.getItem('customWheels');
                 if (savedWheels) {
@@ -696,21 +818,47 @@
                     window.wheels = getWheels().filter(w => !w.custom);
                     window.wheels.push(...customWheels);
                 }
+                
+                const savedFrameLevels = localStorage.getItem('frameLevels');
+                if (savedFrameLevels) {
+                    frameLevels = JSON.parse(savedFrameLevels);
+                } else {
+                    // Initialize all frames to level 0
+                    const frames = getBikeFrames();
+                    frames.forEach(frame => {
+                        frameLevels[frame.name] = 0;
+                    });
+                    saveFrameLevels();
+                }
             } catch (e) {
-                console.error("Error loading custom wheels:", e);
+                console.error("Error loading custom data:", e);
             }
+        }
+
+        // Save frame levels to localStorage
+        function saveFrameLevels() {
+            localStorage.setItem('frameLevels', JSON.stringify(frameLevels));
+        }
+
+        // Calculate intermediate frame stats between level 0 and 5
+        function getFrameStatsAtLevel(frame, level) {
+            // Linear interpolation between level 0 and 5
+            const progress = level / 5;
+            return {
+                flat: Math.round(frame.flat0 + (frame.flat5 - frame.flat0) * progress),
+                climb: Math.round(frame.climb0 + (frame.climb5 - frame.climb0) * progress)
+            };
         }
 
         // Initialize the application
         function init() {
             try {
-                loadCustomWheels();
+                loadCustomData();
                 updateUnitDisplay();
-                setupFilterChips();
                 populateBrandFilters();
                 populateFrameBrandFilters();
-                setupFrameFilters();
                 setupInputEventListeners();
+                populateFrameLevelsTable();
                 
                 // Initial calculations
                 calculate();
@@ -720,13 +868,35 @@
             }
         }
 
+        // Tab navigation
+        function openTab(tabId) {
+            // Hide all tab panes
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            
+            // Deactivate all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Activate selected tab
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.tab-button[onclick="openTab('${tabId}')"]`).classList.add('active');
+            
+            // Special handling for frame levels tab
+            if (tabId === 'frameLevels') {
+                populateFrameLevelsTable();
+            }
+        }
+
         // Set up all input event listeners
         function setupInputEventListeners() {
             // Inputs that should trigger full recalculation
             const calculationInputs = [
                 'weight', 'height', 'heightFeet', 'heightInches', 
                 'ftp', 'powerRange', 'distance', 'elevation',
-                'avgSpeed', 'courseProfile', 'bikeType', 'frameLevel'
+                'avgSpeed', 'courseProfile', 'bikeType'
             ];
             
             calculationInputs.forEach(id => {
@@ -798,55 +968,24 @@
             calculate();
         }
 
-        // Setup filter chips with click handlers
-        function setupFilterChips() {
-            // Brand filters
-            const brandChips = document.querySelectorAll('#brandFilters .filter-chip');
-            brandChips.forEach(chip => {
-                chip.addEventListener('click', function() {
-                    this.classList.toggle('active');
-                });
-            });
+        // Toggle all brands in a filter group
+        function toggleAllBrands(filterGroupId) {
+            const filterGroup = document.getElementById(filterGroupId);
+            const chips = filterGroup.querySelectorAll('.filter-chip');
+            const selectAllText = filterGroup.previousElementSibling.querySelector('.brand-select-all');
             
-            // Wheel type filters
-            const wheelTypeChips = document.querySelectorAll('#wheelTypeFilters .filter-chip');
-            wheelTypeChips.forEach(chip => {
-                chip.addEventListener('click', function() {
-                    if (this.dataset.type === 'all') {
-                        wheelTypeChips.forEach(c => c.classList.remove('active'));
-                        this.classList.add('active');
-                    } else {
-                        document.querySelector('#wheelTypeFilters .filter-chip[data-type="all"]').classList.remove('active');
-                        this.classList.toggle('active');
-                        
-                        const activeTypes = document.querySelectorAll('#wheelTypeFilters .filter-chip.active');
-                        if (activeTypes.length === 0) {
-                            document.querySelector('#wheelTypeFilters .filter-chip[data-type="all"]').classList.add('active');
-                        }
-                    }
-                });
-            });
-        }
-
-        // Setup frame filters
-        function setupFrameFilters() {
-            const frameTypeChips = document.querySelectorAll('#frameTypeFilters .filter-chip');
-            frameTypeChips.forEach(chip => {
-                chip.addEventListener('click', function() {
-                    if (this.dataset.type === 'all') {
-                        frameTypeChips.forEach(c => c.classList.remove('active'));
-                        this.classList.add('active');
-                    } else {
-                        document.querySelector('#frameTypeFilters .filter-chip[data-type="all"]').classList.remove('active');
-                        this.classList.toggle('active');
-                        
-                        const activeTypes = document.querySelectorAll('#frameTypeFilters .filter-chip.active');
-                        if (activeTypes.length === 0) {
-                            document.querySelector('#frameTypeFilters .filter-chip[data-type="all"]').classList.add('active');
-                        }
-                    }
-                });
-            });
+            // Check if all are currently active
+            const allActive = Array.from(chips).every(chip => chip.classList.contains('active'));
+            
+            if (allActive) {
+                // Deselect all
+                chips.forEach(chip => chip.classList.remove('active'));
+                selectAllText.textContent = 'Select All';
+            } else {
+                // Select all
+                chips.forEach(chip => chip.classList.add('active'));
+                selectAllText.textContent = 'Deselect All';
+            }
         }
 
         // Populate brand filters
@@ -871,6 +1010,60 @@
             } catch (e) {
                 console.error("Error populating brand filters:", e);
             }
+        }
+
+        // Populate frame levels table
+        function populateFrameLevelsTable() {
+            const tableBody = document.querySelector('#frameLevelsTable tbody');
+            tableBody.innerHTML = '';
+            
+            const frames = getBikeFrames();
+            const searchTerm = document.getElementById('frameLevelSearch').value.toLowerCase();
+            const typeFilter = document.getElementById('frameLevelTypeFilter').value;
+            
+            frames.forEach(frame => {
+                // Apply filters
+                if (searchTerm && !frame.name.toLowerCase().includes(searchTerm)) {
+                    return;
+                }
+                if (typeFilter !== 'all' && frame.type !== typeFilter) {
+                    return;
+                }
+                
+                const currentLevel = frameLevels[frame.name] || 0;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${frame.name}</td>
+                    <td>${frame.type}</td>
+                    <td>
+                        <select class="level-select" data-frame="${frame.name}" onchange="updateFrameLevel('${frame.name}', this.value)">
+                            <option value="0" ${currentLevel === 0 ? 'selected' : ''}>0</option>
+                            <option value="1" ${currentLevel === 1 ? 'selected' : ''}>1</option>
+                            <option value="2" ${currentLevel === 2 ? 'selected' : ''}>2</option>
+                            <option value="3" ${currentLevel === 3 ? 'selected' : ''}>3</option>
+                            <option value="4" ${currentLevel === 4 ? 'selected' : ''}>4</option>
+                            <option value="5" ${currentLevel === 5 ? 'selected' : ''}>5</option>
+                        </select>
+                    </td>
+                    <td>Flat: ${frame.flat0}s, Climb: ${frame.climb0}s</td>
+                    <td>Flat: ${frame.flat5}s, Climb: ${frame.climb5}s</td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Filter frame levels table
+        function filterFrameLevels() {
+            populateFrameLevelsTable();
+        }
+
+        // Update frame level in storage and recalculate
+        function updateFrameLevel(frameName, level) {
+            frameLevels[frameName] = parseInt(level);
+            saveFrameLevels();
+            calculate();
         }
 
         // Unit conversion functions
@@ -1048,12 +1241,11 @@
             }
         }
 
-        // Main calculation function - UPDATED TO PROPERLY USE ALL INPUTS
+        // Main calculation function
         function calculate() {
             try {
                 const inputs = {
                     bikeType: document.getElementById('bikeType').value,
-                    frameLevel: document.getElementById('frameLevel').value,
                     distance: parseInput('distance'), // in km
                     elevation: parseInput('elevation'), // in meters
                     weight: parseInput('weight'), // in kg
@@ -1128,26 +1320,40 @@
                 relevantFrames = applyFrameFilters(relevantFrames);
                 
                 const frameResults = relevantFrames.map(frame => {
-                    const framePerformance = {
-                        flat: inputs.frameLevel === '5' ? frame.flat5 : frame.flat0,
-                        climb: inputs.frameLevel === '5' ? frame.climb5 : frame.climb0
-                    };
+                    // Get current level of this frame
+                    const currentLevel = frameLevels[frame.name] || 0;
+                    
+                    // Calculate stats at current level and next level
+                    const currentStats = getFrameStatsAtLevel(frame, currentLevel);
+                    const nextLevelStats = currentLevel < 5 ? getFrameStatsAtLevel(frame, currentLevel + 1) : currentStats;
                     
                     // Adjust frame savings for rider characteristics
                     const weightFactor = Math.sqrt(inputs.weight / 75);
                     const powerFactor = Math.sqrt(inputs.power / 300);
                     const timeFactor = baseTime / 3600;
                     
-                    const flatSavings = framePerformance.flat * timeFactor * flatRatio / weightFactor * powerFactor;
-                    const climbSavings = framePerformance.climb * timeFactor * climbRatio / weightFactor;
-                    const totalSavings = flatSavings + climbSavings;
+                    // Current level savings
+                    const currentFlatSavings = currentStats.flat * timeFactor * flatRatio / weightFactor * powerFactor;
+                    const currentClimbSavings = currentStats.climb * timeFactor * climbRatio / weightFactor;
+                    const currentTotalSavings = currentFlatSavings + currentClimbSavings;
+                    
+                    // Next level savings (if applicable)
+                    let nextLevelGain = 0;
+                    if (currentLevel < 5) {
+                        const nextFlatSavings = nextLevelStats.flat * timeFactor * flatRatio / weightFactor * powerFactor;
+                        const nextClimbSavings = nextLevelStats.climb * timeFactor * climbRatio / weightFactor;
+                        const nextTotalSavings = nextFlatSavings + nextClimbSavings;
+                        nextLevelGain = nextTotalSavings - currentTotalSavings;
+                    }
                     
                     return {
                         ...frame,
-                        flatSavings: flatSavings,
-                        climbSavings: climbSavings,
-                        totalSavings: totalSavings,
-                        estimatedTime: baseTime - totalSavings
+                        currentLevel: currentLevel,
+                        flatSavings: currentFlatSavings,
+                        climbSavings: currentClimbSavings,
+                        totalSavings: currentTotalSavings,
+                        nextLevelGain: nextLevelGain,
+                        estimatedTime: baseTime - currentTotalSavings
                     };
                 }).sort((a, b) => b.totalSavings - a.totalSavings);
 
@@ -1181,12 +1387,6 @@
                 
                 if (activeBrands.length > 0) {
                     frames = frames.filter(frame => activeBrands.includes(frame.brand));
-                }
-                
-                // Apply frame type filters
-                const activeTypeChip = document.querySelector('#frameTypeFilters .filter-chip.active[data-type]');
-                if (activeTypeChip && activeTypeChip.dataset.type !== 'all') {
-                    frames = frames.filter(frame => frame.type === activeTypeChip.dataset.type);
                 }
                 
                 // Apply search filter
@@ -1249,9 +1449,11 @@
                                         const frame = frameResults[context.dataIndex];
                                         return [
                                             `Frame: ${frame.name}`,
+                                            `Level: ${frame.currentLevel}`,
                                             `Total Savings: ${frame.totalSavings.toFixed(1)}s`,
                                             `Flat Savings: ${frame.flatSavings.toFixed(1)}s`,
-                                            `Climb Savings: ${frame.climbSavings.toFixed(1)}s`
+                                            `Climb Savings: ${frame.climbSavings.toFixed(1)}s`,
+                                            frame.currentLevel < 5 ? `Next Level Gain: ${frame.nextLevelGain.toFixed(1)}s` : 'Max Level'
                                         ];
                                     }
                                 }
@@ -1479,13 +1681,15 @@
                     <tr>
                         <th>Rank</th>
                         <th>Frame</th>
+                        <th>Current Level</th>
                         <th>Time Savings</th>
+                        <th>Next Level Gain</th>
                     </tr>
                 `;
 
                 if (frameResults.length === 0) {
                     const row = table.insertRow();
-                    row.innerHTML = '<td colspan="3" style="text-align: center;">No frames available for this bike type</td>';
+                    row.innerHTML = '<td colspan="5" style="text-align: center;">No frames available for this bike type</td>';
                     return;
                 }
 
@@ -1495,7 +1699,11 @@
                     row.innerHTML = `
                         <td>${index + 1}</td>
                         <td>${frame.name}</td>
+                        <td>${frame.currentLevel}</td>
                         <td>${frame.totalSavings.toFixed(1)}s</td>
+                        <td class="${frame.currentLevel < 5 ? 'upgrade-benefit' : ''}">
+                            ${frame.currentLevel < 5 ? `+${frame.nextLevelGain.toFixed(1)}s` : 'Max Level'}
+                        </td>
                     `;
                     
                     // Add click handler to highlight row and corresponding chart bar
@@ -1596,12 +1804,6 @@
                     wheels = wheels.filter(wheel => activeBrands.includes(wheel.brand));
                 }
                 
-                // Apply wheel type filters
-                const activeTypeChip = document.querySelector('#wheelTypeFilters .filter-chip.active[data-type]');
-                if (activeTypeChip && activeTypeChip.dataset.type !== 'all') {
-                    wheels = wheels.filter(wheel => wheel.type === activeTypeChip.dataset.type);
-                }
-                
                 // Apply search filter
                 const searchTerm = document.getElementById('wheelSearch').value.toLowerCase();
                 if (searchTerm) {
@@ -1628,18 +1830,6 @@
                 chip.classList.add('active');
             });
             
-            // Reset wheel type filters
-            document.querySelectorAll('#wheelTypeFilters .filter-chip').forEach(chip => {
-                chip.classList.remove('active');
-            });
-            document.querySelector('#wheelTypeFilters .filter-chip[data-type="all"]').classList.add('active');
-            
-            // Reset frame type filters
-            document.querySelectorAll('#frameTypeFilters .filter-chip').forEach(chip => {
-                chip.classList.remove('active');
-            });
-            document.querySelector('#frameTypeFilters .filter-chip[data-type="all"]').classList.add('active');
-            
             // Reset frame brand filters
             document.querySelectorAll('#frameBrandFilters .filter-chip').forEach(chip => {
                 chip.classList.add('active');
@@ -1648,6 +1838,11 @@
             // Reset search
             document.getElementById('wheelSearch').value = '';
             document.getElementById('frameSearch').value = '';
+            
+            // Update select all text
+            document.querySelectorAll('.brand-select-all').forEach(el => {
+                el.textContent = 'Deselect All';
+            });
             
             calculate();
         }
@@ -1662,7 +1857,6 @@
             document.getElementById('powerRange').value = '100';
             document.getElementById('powerRangeValue').textContent = '100%';
             document.getElementById('avgSpeed').value = '30';
-            document.getElementById('frameLevel').value = '0';
             document.getElementById('bikeType').value = 'road';
             document.getElementById('courseProfile').value = 'flat';
             
