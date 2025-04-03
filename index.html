@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zwift Wheel Optimizer Pro</title>
+    <title>Zwift Frame/Wheel Optimizer Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2"></script>
@@ -610,8 +610,12 @@
                                 <span id="powerRangeValue">100%</span>
                             </div>
                             <div class="input-group">
-                                <label>Effective Power (W)</label>
-                                <input type="number" id="power" value="300" readonly>
+                                <label>Power (W)</label>
+                                <input type="number" id="power" value="300" min="0" max="1000" step="1">
+                            </div>
+                            <div class="input-group">
+                                <label>FTP (W)</label>
+                                <input type="number" id="ftp" value="300" min="100" max="1000">
                             </div>
                         </div>
                     </div>
@@ -1054,23 +1058,45 @@
             // Inputs that should trigger full recalculation
             const calculationInputs = [
                 'weight', 'height', 'heightFeet', 'heightInches', 
-                'ftp', 'powerRange', 'distance', 'elevation',
-                'avgSpeed', 'courseProfile', 'bikeType', 'laps'
+                'distance', 'elevation', 'avgSpeed', 'courseProfile', 
+                'bikeType', 'laps'
             ];
             
             calculationInputs.forEach(id => {
                 document.getElementById(id).addEventListener('input', function() {
-                    if (id === 'powerRange') {
-                        document.getElementById('powerRangeValue').textContent = this.value + '%';
-                        document.getElementById('power').value = Math.round(parseFloat(document.getElementById('ftp').value) * (parseFloat(this.value) / 100));
-                        updateSpeedTimeChart();
-                    }
                     calculate();
-                    // Special handling for speed-time chart inputs
                     if (id === 'avgSpeed' || id === 'distance') {
                         updateSpeedTimeChart();
                     }
                 });
+            });
+
+            // Power input synchronization
+            document.getElementById('powerRange').addEventListener('input', function() {
+                const ftp = parseInput('ftp');
+                const percentage = parseFloat(this.value);
+                document.getElementById('powerRangeValue').textContent = percentage + '%';
+                document.getElementById('power').value = Math.round(ftp * (percentage / 100));
+                calculate();
+                updateSpeedTimeChart();
+            });
+
+            document.getElementById('power').addEventListener('input', function() {
+                const ftp = parseInput('ftp');
+                const power = parseFloat(this.value);
+                const percentage = Math.round((power / ftp) * 100);
+                document.getElementById('powerRange').value = percentage;
+                document.getElementById('powerRangeValue').textContent = percentage + '%';
+                calculate();
+                updateSpeedTimeChart();
+            });
+
+            document.getElementById('ftp').addEventListener('input', function() {
+                const percentage = parseInput('powerRange');
+                const ftp = parseFloat(this.value);
+                document.getElementById('power').value = Math.round(ftp * (percentage / 100));
+                calculate();
+                updateSpeedTimeChart();
             });
         }
 
@@ -1221,9 +1247,7 @@
                 const ctx = document.getElementById('speedTimeChart').getContext('2d');
                 const distance = parseInput('distance');
                 const currentSpeed = parseInput('avgSpeed');
-                const power = parseInput('ftp');
-                const powerRange = parseInput('powerRange') / 100;
-                const adjustedPower = power * powerRange;
+                const power = parseInput('power');
                 
                 if (speedTimeChart) speedTimeChart.destroy();
 
@@ -1319,7 +1343,7 @@
                 });
 
                 // Update fueling plan when speed changes
-                calculateFuelingPlan(distance, currentSpeed, adjustedPower);
+                calculateFuelingPlan(distance, currentSpeed, power);
             } catch (e) {
                 console.error("Speed-time chart update error:", e);
             }
@@ -1424,130 +1448,127 @@
         }
 
         // Main calculation function with simplified wheel recommendations
-         function calculate() {
-        try {
-            // Get all input values
-            const inputs = {
-                bikeType: document.getElementById('bikeType').value,
-                distance: parseInput('distance'), // in km
-                elevation: parseInput('elevation'), // in meters
-                weight: parseInput('weight'), // in kg
-                height: isMetric ? parseInput('height') : 
-                    (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm, // in cm
-                power: parseInput('ftp') * (parseInput('powerRange') / 100), // in watts
-                powerPercentage: parseInput('powerRange') / 100, // as decimal
-                avgSpeed: parseInput('avgSpeed'), // in km/h
-                laps: parseInput('laps') || 1
-            };
-
-            // Update power display
-            document.getElementById('power').value = Math.round(inputs.power);
-
-            // Check if a specific route is selected
-            const routeSelect = document.getElementById('routeSelect');
-            const selectedRouteName = routeSelect.value;
-            let selectedRoute = null;
-            
-            if (selectedRouteName !== 'custom') {
-                selectedRoute = window.routes.find(r => r.name === selectedRouteName);
-            }
-
-            // Calculate climbing importance (0-1 where 0 is flat, 1 is very hilly)
-            const metersPerKm = (inputs.elevation / inputs.distance);
-            const climbingImportance = Math.min(metersPerKm / 20, 0.95); // 20m/km is very hilly
-            
-            // Base time calculation - adjusted for power percentage
-            const baseTime = (inputs.distance / inputs.avgSpeed) * 3600; // in seconds
-            
-            // Get all wheels and apply filters
-            let wheels = getWheels();
-            wheels = applyActiveFilters(wheels);
-            
-            // Calculate time savings for each wheel - now power-adjusted
-            const wheelResults = wheels.map(wheel => {
-                const wheelPerf = wheel.performance[inputs.bikeType] || wheel.performance.road;
-                
-                // Weight adjustment (heavier riders benefit less from climbing wheels)
-                const weightFactor = Math.pow(inputs.weight / 75, 0.7); 
-                
-                // Power adjustment factor (higher power means more benefit from aero)
-                const powerFactor = Math.min(1 + (inputs.powerPercentage - 1) * 0.5, 1.5);
-                
-                // Calculate savings - now power-adjusted
-                const flatSavings = wheelPerf.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
-                const climbSavings = wheelPerf.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
-                const totalSavings = flatSavings + climbSavings;
-                
-                return {
-                    name: wheel.name,
-                    brand: wheel.brand,
-                    flatSavings,
-                    climbSavings,
-                    totalSavings,
-                    custom: wheel.custom || false
+        function calculate() {
+            try {
+                // Get all input values
+                const inputs = {
+                    bikeType: document.getElementById('bikeType').value,
+                    distance: parseInput('distance'), // in km
+                    elevation: parseInput('elevation'), // in meters
+                    weight: parseInput('weight'), // in kg
+                    height: isMetric ? parseInput('height') : 
+                        (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm, // in cm
+                    power: parseInput('power'), // in watts (direct input)
+                    powerPercentage: parseInput('powerRange') / 100, // as decimal
+                    avgSpeed: parseInput('avgSpeed'), // in km/h
+                    laps: parseInput('laps') || 1
                 };
-            }).sort((a, b) => b.totalSavings - a.totalSavings);
-            
-            // Get all frames and apply filters
-            let frames = getBikeFrames();
-            frames = applyFrameFilters(frames);
-            frames = frames.filter(frame => frame.type === inputs.bikeType);
-            
-            // Calculate time savings for each frame - now power-adjusted
-            const frameResults = frames.map(frame => {
-                const currentLevel = frameLevels[frame.name] || 0;
-                const currentStats = getFrameStatsAtLevel(frame, currentLevel);
+
+                // Check if a specific route is selected
+                const routeSelect = document.getElementById('routeSelect');
+                const selectedRouteName = routeSelect.value;
+                let selectedRoute = null;
                 
-                // Apply same weight and power sensitivity as wheels
-                const weightFactor = Math.pow(inputs.weight / 75, 0.7);
-                const powerFactor = Math.min(1 + (inputs.powerPercentage - 1) * 0.5, 1.5);
-                
-                // Current level savings
-                const currentFlatSavings = currentStats.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
-                const currentClimbSavings = currentStats.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
-                const currentTotalSavings = currentFlatSavings + currentClimbSavings;
-                
-                // Next level savings (if applicable)
-                let nextLevelGain = 0;
-                if (currentLevel < 5) {
-                    const nextStats = getFrameStatsAtLevel(frame, currentLevel + 1);
-                    const nextFlatSavings = nextStats.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
-                    const nextClimbSavings = nextStats.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
-                    const nextTotalSavings = nextFlatSavings + nextClimbSavings;
-                    nextLevelGain = nextTotalSavings - currentTotalSavings;
+                if (selectedRouteName !== 'custom') {
+                    selectedRoute = window.routes.find(r => r.name === selectedRouteName);
                 }
-                
-                return {
-                    name: frame.name,
-                    currentLevel,
-                    flatSavings: currentFlatSavings,
-                    climbSavings: currentClimbSavings,
-                    totalSavings: currentTotalSavings,
-                    nextLevelGain
-                };
-            }).sort((a, b) => b.totalSavings - a.totalSavings);
-            
-            // Update charts and tables
-            updateChart(wheelResults);
-            updateFrameChart(frameResults);
-            updateWheelTable(wheelResults);
-            updateFrameTable(frameResults);
-            
-            // Update bike summary
-            updateBikeSummary(wheelResults, frameResults);
-            
-            // Highlight top wheel by default
-            if (wheelResults.length > 0) {
-                highlightWheel(wheelResults[0].name, true);
-            }
 
-            // Update fueling plan
-            calculateFuelingPlan(inputs.distance, inputs.avgSpeed, inputs.power);
-            
-        } catch (e) {
-            console.error("Calculation error:", e);
+                // Calculate climbing importance (0-1 where 0 is flat, 1 is very hilly)
+                const metersPerKm = (inputs.elevation / inputs.distance);
+                const climbingImportance = Math.min(metersPerKm / 20, 0.95); // 20m/km is very hilly
+                
+                // Base time calculation - adjusted for power percentage
+                const baseTime = (inputs.distance / inputs.avgSpeed) * 3600; // in seconds
+                
+                // Get all wheels and apply filters
+                let wheels = getWheels();
+                wheels = applyActiveFilters(wheels);
+                
+                // Calculate time savings for each wheel - now power-adjusted
+                const wheelResults = wheels.map(wheel => {
+                    const wheelPerf = wheel.performance[inputs.bikeType] || wheel.performance.road;
+                    
+                    // Weight adjustment (heavier riders benefit less from climbing wheels)
+                    const weightFactor = Math.pow(inputs.weight / 75, 0.7); 
+                    
+                    // Power adjustment factor (higher power means more benefit from aero)
+                    const powerFactor = Math.min(1 + (inputs.powerPercentage - 1) * 0.5, 1.5);
+                    
+                    // Calculate savings - now power-adjusted
+                    const flatSavings = wheelPerf.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
+                    const climbSavings = wheelPerf.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
+                    const totalSavings = flatSavings + climbSavings;
+                    
+                    return {
+                        name: wheel.name,
+                        brand: wheel.brand,
+                        flatSavings,
+                        climbSavings,
+                        totalSavings,
+                        custom: wheel.custom || false
+                    };
+                }).sort((a, b) => b.totalSavings - a.totalSavings);
+                
+                // Get all frames and apply filters
+                let frames = getBikeFrames();
+                frames = applyFrameFilters(frames);
+                frames = frames.filter(frame => frame.type === inputs.bikeType);
+                
+                // Calculate time savings for each frame - now power-adjusted
+                const frameResults = frames.map(frame => {
+                    const currentLevel = frameLevels[frame.name] || 0;
+                    const currentStats = getFrameStatsAtLevel(frame, currentLevel);
+                    
+                    // Apply same weight and power sensitivity as wheels
+                    const weightFactor = Math.pow(inputs.weight / 75, 0.7);
+                    const powerFactor = Math.min(1 + (inputs.powerPercentage - 1) * 0.5, 1.5);
+                    
+                    // Current level savings
+                    const currentFlatSavings = currentStats.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
+                    const currentClimbSavings = currentStats.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
+                    const currentTotalSavings = currentFlatSavings + currentClimbSavings;
+                    
+                    // Next level savings (if applicable)
+                    let nextLevelGain = 0;
+                    if (currentLevel < 5) {
+                        const nextStats = getFrameStatsAtLevel(frame, currentLevel + 1);
+                        const nextFlatSavings = nextStats.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
+                        const nextClimbSavings = nextStats.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
+                        const nextTotalSavings = nextFlatSavings + nextClimbSavings;
+                        nextLevelGain = nextTotalSavings - currentTotalSavings;
+                    }
+                    
+                    return {
+                        name: frame.name,
+                        currentLevel,
+                        flatSavings: currentFlatSavings,
+                        climbSavings: currentClimbSavings,
+                        totalSavings: currentTotalSavings,
+                        nextLevelGain
+                    };
+                }).sort((a, b) => b.totalSavings - a.totalSavings);
+                
+                // Update charts and tables
+                updateChart(wheelResults);
+                updateFrameChart(frameResults);
+                updateWheelTable(wheelResults);
+                updateFrameTable(frameResults);
+                
+                // Update bike summary
+                updateBikeSummary(wheelResults, frameResults);
+                
+                // Highlight top wheel by default
+                if (wheelResults.length > 0) {
+                    highlightWheel(wheelResults[0].name, true);
+                }
+
+                // Update fueling plan
+                calculateFuelingPlan(inputs.distance, inputs.avgSpeed, inputs.power);
+                
+            } catch (e) {
+                console.error("Calculation error:", e);
+            }
         }
-    }
 
         // Update bike summary with best equipment
         function updateBikeSummary(wheelResults, frameResults) {
