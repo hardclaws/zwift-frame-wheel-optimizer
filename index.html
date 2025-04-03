@@ -10,21 +10,7 @@
     <!-- Load data files -->
     <script src="data/bikeFrames.js"></script>
     <script src="data/wheels.js"></script>
-    <script>
-    // Data loading verification
-    console.log("Bike frames loaded:", window.bikeFrames ? "Yes" : "No");
-    console.log("Wheels loaded:", window.wheels ? "Yes" : "No");
-    
-    // Initialize empty arrays if data not loaded
-    if (!window.bikeFrames) {
-        console.warn("Bike frames not loaded - initializing empty array");
-        window.bikeFrames = [];
-    }
-    if (!window.wheels) {
-        console.warn("Wheels not loaded - initializing empty array");
-        window.wheels = [];
-    }
-    </script>
+    <script src="data/routes.js"></script>
     <style>
         :root {
             --primary-color: #2196F3;
@@ -397,14 +383,6 @@
             background-color: #f9f9f9;
         }
 
-        .brand-select-all {
-            margin-top: 5px;
-            font-size: 12px;
-            color: var(--primary-color);
-            cursor: pointer;
-            text-decoration: underline;
-        }
-
         .frame-levels-container {
             margin-top: 20px;
             background: white;
@@ -471,6 +449,30 @@
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
+        }
+
+        .route-summary {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e9;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .route-summary strong {
+            color: var(--primary-color);
+        }
+
+        .bike-summary {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e3f2fd;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .bike-summary strong {
+            color: var(--primary-color);
         }
 
         @media (max-width: 768px) {
@@ -564,13 +566,24 @@
                         <h3>Course Details</h3>
                         <div class="input-grid">
                             <div class="input-group">
-                                <label>Course Profile</label>
-                                <select id="courseProfile">
-                                    <option value="flat">Flat</option>
-                                    <option value="rolling">Rolling</option>
-                                    <option value="hilly">Hilly</option>
-                                    <option value="mountainous">Mountainous</option>
+                                <label>World</label>
+                                <select id="worldSelect" onchange="updateWorldRoutes()">
+                                    <option value="all">All Worlds</option>
+                                    <!-- Options will be populated dynamically -->
                                 </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label>Route</label>
+                                <select id="routeSelect" onchange="updateRouteDetails()">
+                                    <option value="custom">Custom Route</option>
+                                    <!-- Options will be populated dynamically -->
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label>Laps</label>
+                                <input type="number" id="laps" value="1" min="1" step="1" onchange="updateRouteDetails()">
                             </div>
 
                             <div class="input-group">
@@ -583,6 +596,24 @@
                                 <input type="number" id="elevation" value="150">
                             </div>
 
+                            <div class="input-group">
+                                <label>Course Profile</label>
+                                <select id="courseProfile">
+                                    <option value="flat">Flat</option>
+                                    <option value="rolling">Rolling</option>
+                                    <option value="hilly">Hilly</option>
+                                    <option value="mountainous">Mountainous</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="route-summary" id="routeSummary">
+                            <strong>Route Summary:</strong> Custom Route - 30.0 km, 150 m elevation
+                        </div>
+                    </div>
+
+                    <div class="input-section">
+                        <h3>Bike Details</h3>
+                        <div class="input-grid">
                             <div class="input-group">
                                 <label>Est. Avg Speed (km/h)</label>
                                 <input type="number" id="avgSpeed" value="30" min="10" max="60" step="0.1">
@@ -601,10 +632,15 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="bike-summary" id="bikeSummary">
+                            <strong>Best Equipment:</strong> Loading...
+                        </div>
                     </div>
+                </div>
 
+                <div class="control-panel">
                     <div class="input-section">
-                        <h3>Time vs Speed</h3>
+                        <h3>Power vs Speed</h3>
                         <div class="chart-container">
                             <canvas id="speedTimeChart"></canvas>
                         </div>
@@ -782,14 +818,6 @@
             inToCm: 2.54
         };
 
-        // Course profile settings
-        const courseProfiles = {
-            flat: { flatRatio: 0.9, climbRatio: 0.1 },
-            rolling: { flatRatio: 0.7, climbRatio: 0.3 },
-            hilly: { flatRatio: 0.5, climbRatio: 0.5 },
-            mountainous: { flatRatio: 0.3, climbRatio: 0.7 }
-        };
-
         // Frame level data storage
         let frameLevels = {};
 
@@ -807,6 +835,16 @@
                 }
                 return frame;
             });
+        }
+
+        function calculateCourseProfile(elevation, distance) {
+            const metersPerKm = elevation / distance;
+            
+            // Classification thresholds:
+            if (metersPerKm < 5) return 'flat';        // < 5m/km
+            if (metersPerKm < 10) return 'rolling';    // 5-10m/km
+            if (metersPerKm < 15) return 'hilly';      // 10-15m/km
+            return 'mountainous';                      // 15m+/km
         }
 
         // Load custom wheels and frame levels from localStorage
@@ -850,6 +888,53 @@
             };
         }
 
+        // Calculate climbing importance based on route characteristics
+        function calculateClimbingImportance(route) {
+            if (!route) {
+                const distance = parseInput('distance');
+                const elevation = parseInput('elevation');
+                route = {
+                    lapDistance: distance,
+                    lapElevation: elevation,
+                    metersPerKm: (elevation / distance) * 1000,
+                    gradient: (elevation / (distance * 10)) || 0
+                };
+            }
+            
+            // Update the course profile dropdown
+            const profile = calculateCourseProfile(route.lapElevation, route.lapDistance);
+            document.getElementById('courseProfile').value = profile;
+            
+            // Calculate climbing percentage of total distance
+            const climbingPercentage = (route.lapElevation / (route.lapDistance * 1000)) * 100;
+            
+            // Gradient severity factor (0-1.5)
+            const gradientSeverity = Math.min(route.gradient / 10, 1.5);
+            
+            // Combined importance (0-1)
+            return Math.min((climbingPercentage * gradientSeverity) / 100, 0.95);
+        }
+
+        // Get dynamic flat/climb ratios based on route characteristics
+        function getDynamicRatios(route) {
+            const climbingImportance = calculateClimbingImportance(route);
+            
+            // Base ratios that can be adjusted by up to ±0.2 based on gradient
+            let flatRatio = 0.7 - (climbingImportance * 0.65);
+            let climbRatio = 0.3 + (climbingImportance * 0.65);
+            
+            // Ensure ratios stay within bounds
+            flatRatio = Math.max(0.05, Math.min(0.95, flatRatio));
+            climbRatio = Math.max(0.05, Math.min(0.95, climbRatio));
+            
+            // Normalize to sum to 1
+            const sum = flatRatio + climbRatio;
+            return {
+                flatRatio: flatRatio / sum,
+                climbRatio: climbRatio / sum
+            };
+        }
+
         // Initialize the application
         function init() {
             try {
@@ -857,6 +942,8 @@
                 updateUnitDisplay();
                 populateBrandFilters();
                 populateFrameBrandFilters();
+                populateWorldSelect();
+                populateRouteSelect();
                 setupInputEventListeners();
                 populateFrameLevelsTable();
                 
@@ -896,11 +983,16 @@
             const calculationInputs = [
                 'weight', 'height', 'heightFeet', 'heightInches', 
                 'ftp', 'powerRange', 'distance', 'elevation',
-                'avgSpeed', 'courseProfile', 'bikeType'
+                'avgSpeed', 'courseProfile', 'bikeType', 'laps'
             ];
             
             calculationInputs.forEach(id => {
-                document.getElementById(id).addEventListener('change', function() {
+                document.getElementById(id).addEventListener('input', function() {
+                    if (id === 'powerRange') {
+                        document.getElementById('powerRangeValue').textContent = this.value + '%';
+                        document.getElementById('power').value = Math.round(parseFloat(document.getElementById('ftp').value) * (parseFloat(this.value) / 100));
+                        updateSpeedTimeChart();
+                    }
                     calculate();
                     // Special handling for speed-time chart inputs
                     if (id === 'avgSpeed' || id === 'distance') {
@@ -908,233 +1000,150 @@
                     }
                 });
             });
+        }
 
-            // Special handling for range slider (input vs change)
-            document.getElementById('powerRange').addEventListener('input', function() {
-                document.getElementById('powerRangeValue').textContent = this.value + '%';
-                calculate();
+        // Populate world dropdown with category names
+        function populateWorldSelect() {
+            const worldSelect = document.getElementById('worldSelect');
+            worldSelect.innerHTML = '<option value="all">All Worlds</option>';
+            
+            // Get unique world categories
+            const worldCategories = [...new Set(window.routes.map(route => route.category.split(' - ')[0]))];
+            
+            worldCategories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                worldSelect.appendChild(option);
             });
         }
 
-        // Populate frame brand filters
-        function populateFrameBrandFilters() {
-            try {
-                const frameBrandFilters = document.getElementById('frameBrandFilters');
-                frameBrandFilters.innerHTML = '';
-                
-                const frames = getBikeFrames();
-                const brands = [...new Set(frames.map(f => f.brand).filter(b => b))];
-                
-                brands.forEach(brand => {
-                    const chip = document.createElement('div');
-                    chip.className = 'filter-chip active';
-                    chip.textContent = brand;
-                    chip.dataset.brand = brand;
-                    chip.onclick = function() {
-                        this.classList.toggle('active');
-                    };
-                    frameBrandFilters.appendChild(chip);
-                });
-            } catch (e) {
-                console.error("Error populating frame brand filters:", e);
-            }
-        }
-
-        // Update course profile based on selection
-        function updateCourseProfile() {
-            const profile = document.getElementById('courseProfile').value;
-            const elevationInput = document.getElementById('elevation');
+        // Update routes based on selected world category
+        function updateWorldRoutes() {
+            const worldSelect = document.getElementById('worldSelect');
+            const selectedCategoryPrefix = worldSelect.value;
             
-            // Adjust elevation based on profile selection
-            const distance = parseFloat(document.getElementById('distance').value);
-            let elevation = 0;
+            const routeSelect = document.getElementById('routeSelect');
+            routeSelect.innerHTML = '<option value="custom">Custom Route</option>';
             
-            switch(profile) {
-                case 'flat':
-                    elevation = distance * 5; // 5m per km
-                    break;
-                case 'rolling':
-                    elevation = distance * 15; // 15m per km
-                    break;
-                case 'hilly':
-                    elevation = distance * 30; // 30m per km
-                    break;
-                case 'mountainous':
-                    elevation = distance * 50; // 50m per km
-                    break;
-            }
+            // Filter routes by selected category prefix
+            const filteredRoutes = selectedCategoryPrefix === 'all' 
+                ? window.routes 
+                : window.routes.filter(route => route.category.startsWith(selectedCategoryPrefix));
             
-            elevationInput.value = Math.round(elevation);
-            calculate();
-        }
-
-        // Toggle all brands in a filter group
-        function toggleAllBrands(filterGroupId) {
-            const filterGroup = document.getElementById(filterGroupId);
-            const chips = filterGroup.querySelectorAll('.filter-chip');
-            const selectAllText = filterGroup.previousElementSibling.querySelector('.brand-select-all');
+            // Sort routes alphabetically by name
+            filteredRoutes.sort((a, b) => a.name.localeCompare(b.name));
             
-            // Check if all are currently active
-            const allActive = Array.from(chips).every(chip => chip.classList.contains('active'));
-            
-            if (allActive) {
-                // Deselect all
-                chips.forEach(chip => chip.classList.remove('active'));
-                selectAllText.textContent = 'Select All';
-            } else {
-                // Select all
-                chips.forEach(chip => chip.classList.add('active'));
-                selectAllText.textContent = 'Deselect All';
-            }
-        }
-
-        // Populate brand filters
-        function populateBrandFilters() {
-            try {
-                const brandFilters = document.getElementById('brandFilters');
-                brandFilters.innerHTML = '';
-                
-                const wheels = getWheels();
-                const brands = [...new Set(wheels.map(w => w.brand).filter(b => b))];
-                
-                brands.forEach(brand => {
-                    const chip = document.createElement('div');
-                    chip.className = 'filter-chip active';
-                    chip.textContent = brand;
-                    chip.dataset.brand = brand;
-                    chip.onclick = function() {
-                        this.classList.toggle('active');
-                    };
-                    brandFilters.appendChild(chip);
-                });
-            } catch (e) {
-                console.error("Error populating brand filters:", e);
-            }
-        }
-
-        // Populate frame levels table
-        function populateFrameLevelsTable() {
-            const tableBody = document.querySelector('#frameLevelsTable tbody');
-            tableBody.innerHTML = '';
-            
-            const frames = getBikeFrames();
-            const searchTerm = document.getElementById('frameLevelSearch').value.toLowerCase();
-            const typeFilter = document.getElementById('frameLevelTypeFilter').value;
-            
-            frames.forEach(frame => {
-                // Apply filters
-                if (searchTerm && !frame.name.toLowerCase().includes(searchTerm)) {
-                    return;
+            // Group routes by category
+            const categories = {};
+            filteredRoutes.forEach(route => {
+                if (!categories[route.category]) {
+                    categories[route.category] = [];
                 }
-                if (typeFilter !== 'all' && frame.type !== typeFilter) {
-                    return;
+                categories[route.category].push(route);
+            });
+            
+            // Add options grouped by category
+            Object.entries(categories).forEach(([category, routes]) => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = category;
+                
+                routes.forEach(route => {
+                    const option = document.createElement('option');
+                    option.value = route.name;
+                    option.textContent = `${route.name} - ${route.lapDistance}km, ${route.lapElevation}m`;
+                    optgroup.appendChild(option);
+                });
+                
+                routeSelect.appendChild(optgroup);
+            });
+            
+            // Reset to custom if no routes match
+            if (filteredRoutes.length === 0) {
+                routeSelect.value = 'custom';
+            }
+            
+            updateRouteDetails();
+        }
+
+        // Populate route dropdown with sorted routes
+        function populateRouteSelect() {
+            const routeSelect = document.getElementById('routeSelect');
+            
+            // Clear existing options except the first one
+            while (routeSelect.options.length > 1) {
+                routeSelect.remove(1);
+            }
+            
+            // Sort routes alphabetically by name
+            const sortedRoutes = [...window.routes].sort((a, b) => a.name.localeCompare(b.name));
+            
+            // Group routes by category
+            const categories = {};
+            sortedRoutes.forEach(route => {
+                if (!categories[route.category]) {
+                    categories[route.category] = [];
                 }
+                categories[route.category].push(route);
+            });
+            
+            // Add options grouped by category
+            Object.entries(categories).forEach(([category, routes]) => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = category;
                 
-                const currentLevel = frameLevels[frame.name] || 0;
+                routes.forEach(route => {
+                    const option = document.createElement('option');
+                    option.value = route.name;
+                    option.textContent = `${route.name} - ${route.lapDistance}km, ${route.lapElevation}m`;
+                    optgroup.appendChild(option);
+                });
                 
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${frame.name}</td>
-                    <td>${frame.type}</td>
-                    <td>
-                        <select class="level-select" data-frame="${frame.name}" onchange="updateFrameLevel('${frame.name}', this.value)">
-                            <option value="0" ${currentLevel === 0 ? 'selected' : ''}>0</option>
-                            <option value="1" ${currentLevel === 1 ? 'selected' : ''}>1</option>
-                            <option value="2" ${currentLevel === 2 ? 'selected' : ''}>2</option>
-                            <option value="3" ${currentLevel === 3 ? 'selected' : ''}>3</option>
-                            <option value="4" ${currentLevel === 4 ? 'selected' : ''}>4</option>
-                            <option value="5" ${currentLevel === 5 ? 'selected' : ''}>5</option>
-                        </select>
-                    </td>
-                    <td>Flat: ${frame.flat0}s, Climb: ${frame.climb0}s</td>
-                    <td>Flat: ${frame.flat5}s, Climb: ${frame.climb5}s</td>
-                `;
-                
-                tableBody.appendChild(row);
+                routeSelect.appendChild(optgroup);
             });
         }
 
-        // Filter frame levels table
-        function filterFrameLevels() {
-            populateFrameLevelsTable();
-        }
-
-        // Update frame level in storage and recalculate
-        function updateFrameLevel(frameName, level) {
-            frameLevels[frameName] = parseInt(level);
-            saveFrameLevels();
+        // Update distance and elevation based on selected route and laps
+        function updateRouteDetails() {
+            const routeSelect = document.getElementById('routeSelect');
+            const selectedRouteName = routeSelect.value;
+            
+            if (selectedRouteName === 'custom') {
+                const distance = parseInput('distance');
+                const elevation = parseInput('elevation');
+                const profile = calculateCourseProfile(elevation, distance);
+                document.getElementById('courseProfile').value = profile;
+                
+                document.getElementById('routeSummary').innerHTML = 
+                    `<strong>Route Summary:</strong> Custom Route - ${distance} km, ${elevation} m elevation (${profile})`;
+                return;
+            }
+            
+            const route = window.routes.find(r => r.name === selectedRouteName);
+            if (!route) return;
+            
+            const laps = parseInt(document.getElementById('laps').value) || 1;
+            
+            // Calculate total distance and elevation
+            const totalDistance = (route.lapDistance * laps) + (route.leadInDistance || 0);
+            const totalElevation = (route.lapElevation * laps) + (route.leadInElevation || 0);
+            
+            // Calculate profile
+            const profile = calculateCourseProfile(route.lapElevation, route.lapDistance);
+            
+            // Update inputs
+            document.getElementById('distance').value = totalDistance.toFixed(1);
+            document.getElementById('elevation').value = Math.round(totalElevation);
+            document.getElementById('courseProfile').value = profile;
+            
+            // Update route summary
+            document.getElementById('routeSummary').innerHTML = 
+                `<strong>Route Summary:</strong> ${route.name} (${laps} ${laps === 1 ? 'lap' : 'laps'}) - ${totalDistance.toFixed(1)} km, ${Math.round(totalElevation)} m elevation (${profile})`;
+            
             calculate();
         }
 
-        // Unit conversion functions
-        document.getElementById('unitSlider').addEventListener('click', toggleUnits);
-
-        function toggleUnits() {
-            isMetric = !isMetric;
-            updateUnitDisplay();
-            convertValues();
-            calculate();
-        }
-
-        function updateUnitDisplay() {
-            const slider = document.getElementById('unitSlider');
-            const labels = {
-                distance: ['km', 'mi'],
-                elevation: ['m', 'ft'],
-                weight: ['kg', 'lb']
-            };
-
-            Object.entries(labels).forEach(([id, units]) => {
-                document.getElementById(`${id}Label`).textContent = 
-                    `${id.charAt(0).toUpperCase() + id.slice(1)} (${units[isMetric ? 0 : 1]})`;
-            });
-
-            const metricHeightGroup = document.querySelector('.metric-height');
-            const imperialHeightGroup = document.querySelector('.imperial-height');
-            if (isMetric) {
-                metricHeightGroup.style.display = 'flex';
-                imperialHeightGroup.style.display = 'none';
-            } else {
-                metricHeightGroup.style.display = 'none';
-                imperialHeightGroup.style.display = 'flex';
-            }
-
-            slider.classList.toggle('imperial', !isMetric);
-            document.getElementById('unitLabel').textContent = isMetric ? 'Metric' : 'Imperial';
-        }
-
-        function convertValues() {
-            const elements = [
-                { id: 'distance', factor: conversion.milesToKm },
-                { id: 'elevation', factor: conversion.feetToM },
-                { id: 'weight', factor: conversion.lbToKg }
-            ];
-
-            elements.forEach(({ id, factor }) => {
-                const element = document.getElementById(id);
-                let value = parseFloat(element.value);
-                value = isMetric ? value * factor : value / factor;
-                element.value = value.toFixed(1);
-            });
-
-            if (isMetric) {
-                // Convert imperial to metric for height
-                const feet = parseFloat(document.getElementById('heightFeet').value) || 0;
-                const inches = parseFloat(document.getElementById('heightInches').value) || 0;
-                const totalInches = feet * 12 + inches;
-                const cm = totalInches * conversion.inToCm;
-                document.getElementById('height').value = cm.toFixed(0);
-            } else {
-                // Convert metric to imperial for height
-                const cm = parseFloat(document.getElementById('height').value) || 0;
-                const totalInches = cm / conversion.inToCm;
-                const feet = Math.floor(totalInches / 12);
-                const inches = totalInches % 12;
-                document.getElementById('heightFeet').value = feet.toFixed(0);
-                document.getElementById('heightInches').value = inches.toFixed(1);
-            }
-        }
-
+        // Update speed-time chart
         function updateSpeedTimeChart() {
             try {
                 const ctx = document.getElementById('speedTimeChart').getContext('2d');
@@ -1241,142 +1250,146 @@
             }
         }
 
-        // Main calculation function
-        function calculate() {
-            try {
-                const inputs = {
-                    bikeType: document.getElementById('bikeType').value,
-                    distance: parseInput('distance'), // in km
-                    elevation: parseInput('elevation'), // in meters
-                    weight: parseInput('weight'), // in kg
-                    height: isMetric ? parseInput('height') : 
-                        (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm, // in cm
-                    power: parseInput('ftp') * (parseInput('powerRange') / 100), // in watts
-                    avgSpeed: parseInput('avgSpeed'), // in km/h
-                    courseProfile: document.getElementById('courseProfile').value
-                };
+        // Main calculation function with simplified wheel recommendations
+         function calculate() {
+        try {
+            // Get all input values
+            const inputs = {
+                bikeType: document.getElementById('bikeType').value,
+                distance: parseInput('distance'), // in km
+                elevation: parseInput('elevation'), // in meters
+                weight: parseInput('weight'), // in kg
+                height: isMetric ? parseInput('height') : 
+                    (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm, // in cm
+                power: parseInput('ftp') * (parseInput('powerRange') / 100), // in watts
+                powerPercentage: parseInput('powerRange') / 100, // as decimal
+                avgSpeed: parseInput('avgSpeed'), // in km/h
+                laps: parseInput('laps') || 1
+            };
 
-                // Update effective power display
-                document.getElementById('power').value = inputs.power.toFixed(0);
+            // Update power display
+            document.getElementById('power').value = Math.round(inputs.power);
 
-                if (!isMetric) {
-                    inputs.distance *= conversion.milesToKm; // convert miles to km
-                    inputs.elevation *= conversion.feetToM; // convert feet to meters
-                    inputs.weight *= conversion.lbToKg; // convert lbs to kg
-                }
-
-                // Get course profile ratios
-                const profile = courseProfiles[inputs.courseProfile];
-                const flatRatio = profile.flatRatio;
-                const climbRatio = profile.climbRatio;
-
-                // Calculate base time based on rider characteristics
-                const powerToWeight = inputs.power / inputs.weight; // watts/kg
-                const baseSpeed = calculateBaseSpeed(inputs.avgSpeed, powerToWeight, inputs.height);
-                const baseTime = (inputs.distance / baseSpeed) * 3600; // Base time in seconds
-
-                // Filter wheels for the selected bike type
-                const wheels = getWheels();
-                let relevantWheels = wheels.filter(wheel => 
-                    wheel.bikeType.includes(inputs.bikeType)
-                );
-                
-                // Apply any active filters
-                relevantWheels = applyActiveFilters(relevantWheels);
-
-                // Calculate total savings for each wheel
-                const wheelResults = relevantWheels.map(wheel => {
-                    // Get the performance data for this wheel
-                    const performance = wheel.performance[inputs.bikeType] || wheel.performance.road || { flat: 0, climb: 0 };
-                    
-                    // Adjust for rider characteristics
-                    const weightFactor = Math.sqrt(inputs.weight / 75); // Normalize to 75kg
-                    const heightFactor = 1 + (inputs.height - 175) * 0.002; // Adjust for height
-                    const powerFactor = Math.sqrt(inputs.power / 300); // Normalize to 300W
-                    
-                    // Calculate wheel savings (vs baseline wheels)
-                    const timeFactor = baseTime / 3600; // Scale savings by ride duration in hours
-                    const wheelFlatSavings = performance.flat * timeFactor * flatRatio / weightFactor * powerFactor;
-                    const wheelClimbSavings = performance.climb * timeFactor * climbRatio / weightFactor;
-                    
-                    // Combine savings
-                    const totalSavings = wheelFlatSavings + wheelClimbSavings;
-
-                    return {
-                        ...wheel,
-                        wheelFlatSavings: wheelFlatSavings,
-                        wheelClimbSavings: wheelClimbSavings,
-                        totalSavings: totalSavings,
-                        estimatedTime: baseTime - totalSavings,
-                        estimatedSpeed: baseSpeed // Store the speed used for this calculation
-                    };
-                }).sort((a, b) => b.totalSavings - a.totalSavings);
-
-                // Calculate frame recommendations
-                const bikeFrames = getBikeFrames().filter(frame => frame.type === inputs.bikeType);
-                let relevantFrames = bikeFrames;
-                
-                // Apply frame filters
-                relevantFrames = applyFrameFilters(relevantFrames);
-                
-                const frameResults = relevantFrames.map(frame => {
-                    // Get current level of this frame
-                    const currentLevel = frameLevels[frame.name] || 0;
-                    
-                    // Calculate stats at current level and next level
-                    const currentStats = getFrameStatsAtLevel(frame, currentLevel);
-                    const nextLevelStats = currentLevel < 5 ? getFrameStatsAtLevel(frame, currentLevel + 1) : currentStats;
-                    
-                    // Adjust frame savings for rider characteristics
-                    const weightFactor = Math.sqrt(inputs.weight / 75);
-                    const powerFactor = Math.sqrt(inputs.power / 300);
-                    const timeFactor = baseTime / 3600;
-                    
-                    // Current level savings
-                    const currentFlatSavings = currentStats.flat * timeFactor * flatRatio / weightFactor * powerFactor;
-                    const currentClimbSavings = currentStats.climb * timeFactor * climbRatio / weightFactor;
-                    const currentTotalSavings = currentFlatSavings + currentClimbSavings;
-                    
-                    // Next level savings (if applicable)
-                    let nextLevelGain = 0;
-                    if (currentLevel < 5) {
-                        const nextFlatSavings = nextLevelStats.flat * timeFactor * flatRatio / weightFactor * powerFactor;
-                        const nextClimbSavings = nextLevelStats.climb * timeFactor * climbRatio / weightFactor;
-                        const nextTotalSavings = nextFlatSavings + nextClimbSavings;
-                        nextLevelGain = nextTotalSavings - currentTotalSavings;
-                    }
-                    
-                    return {
-                        ...frame,
-                        currentLevel: currentLevel,
-                        flatSavings: currentFlatSavings,
-                        climbSavings: currentClimbSavings,
-                        totalSavings: currentTotalSavings,
-                        nextLevelGain: nextLevelGain,
-                        estimatedTime: baseTime - currentTotalSavings
-                    };
-                }).sort((a, b) => b.totalSavings - a.totalSavings);
-
-                // Update the charts and tables
-                updateChart(wheelResults);
-                updateFrameChart(frameResults);
-                updateWheelTable(wheelResults);
-                updateFrameTable(frameResults);
-            } catch (e) {
-                console.error("Calculation error:", e);
+            // Check if a specific route is selected
+            const routeSelect = document.getElementById('routeSelect');
+            const selectedRouteName = routeSelect.value;
+            let selectedRoute = null;
+            
+            if (selectedRouteName !== 'custom') {
+                selectedRoute = window.routes.find(r => r.name === selectedRouteName);
             }
-        }
 
-        // New function to calculate base speed considering power and weight
-        function calculateBaseSpeed(avgSpeed, powerToWeight, height) {
-            // Base speed adjustment based on power-to-weight ratio
-            const powerAdjustment = Math.pow(powerToWeight / 4.0, 0.4); // Normalized to 4.0 w/kg
+            // Calculate climbing importance (0-1 where 0 is flat, 1 is very hilly)
+            const metersPerKm = (inputs.elevation / inputs.distance);
+            const climbingImportance = Math.min(metersPerKm / 20, 0.95); // 20m/km is very hilly
             
-            // Height adjustment (taller riders typically have higher speed potential)
-            const heightAdjustment = 1 + (height - 175) * 0.0015;
+            // Base time calculation - adjusted for power percentage
+            const baseTime = (inputs.distance / inputs.avgSpeed) * 3600; // in seconds
             
-            // Return adjusted speed
-            return avgSpeed * powerAdjustment * heightAdjustment;
+            // Get all wheels and apply filters
+            let wheels = getWheels();
+            wheels = applyActiveFilters(wheels);
+            
+            // Calculate time savings for each wheel - now power-adjusted
+            const wheelResults = wheels.map(wheel => {
+                const wheelPerf = wheel.performance[inputs.bikeType] || wheel.performance.road;
+                
+                // Weight adjustment (heavier riders benefit less from climbing wheels)
+                const weightFactor = Math.pow(inputs.weight / 75, 0.7); 
+                
+                // Power adjustment factor (higher power means more benefit from aero)
+                const powerFactor = Math.min(1 + (inputs.powerPercentage - 1) * 0.5, 1.5);
+                
+                // Calculate savings - now power-adjusted
+                const flatSavings = wheelPerf.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
+                const climbSavings = wheelPerf.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
+                const totalSavings = flatSavings + climbSavings;
+                
+                return {
+                    name: wheel.name,
+                    brand: wheel.brand,
+                    flatSavings,
+                    climbSavings,
+                    totalSavings,
+                    custom: wheel.custom || false
+                };
+            }).sort((a, b) => b.totalSavings - a.totalSavings);
+            
+            // Get all frames and apply filters
+            let frames = getBikeFrames();
+            frames = applyFrameFilters(frames);
+            frames = frames.filter(frame => frame.type === inputs.bikeType);
+            
+            // Calculate time savings for each frame - now power-adjusted
+            const frameResults = frames.map(frame => {
+                const currentLevel = frameLevels[frame.name] || 0;
+                const currentStats = getFrameStatsAtLevel(frame, currentLevel);
+                
+                // Apply same weight and power sensitivity as wheels
+                const weightFactor = Math.pow(inputs.weight / 75, 0.7);
+                const powerFactor = Math.min(1 + (inputs.powerPercentage - 1) * 0.5, 1.5);
+                
+                // Current level savings
+                const currentFlatSavings = currentStats.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
+                const currentClimbSavings = currentStats.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
+                const currentTotalSavings = currentFlatSavings + currentClimbSavings;
+                
+                // Next level savings (if applicable)
+                let nextLevelGain = 0;
+                if (currentLevel < 5) {
+                    const nextStats = getFrameStatsAtLevel(frame, currentLevel + 1);
+                    const nextFlatSavings = nextStats.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
+                    const nextClimbSavings = nextStats.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
+                    const nextTotalSavings = nextFlatSavings + nextClimbSavings;
+                    nextLevelGain = nextTotalSavings - currentTotalSavings;
+                }
+                
+                return {
+                    name: frame.name,
+                    currentLevel,
+                    flatSavings: currentFlatSavings,
+                    climbSavings: currentClimbSavings,
+                    totalSavings: currentTotalSavings,
+                    nextLevelGain
+                };
+            }).sort((a, b) => b.totalSavings - a.totalSavings);
+            
+            // Update charts and tables
+            updateChart(wheelResults);
+            updateFrameChart(frameResults);
+            updateWheelTable(wheelResults);
+            updateFrameTable(frameResults);
+            
+            // Update bike summary
+            updateBikeSummary(wheelResults, frameResults);
+            
+            // Highlight top wheel by default
+            if (wheelResults.length > 0) {
+                highlightWheel(wheelResults[0].name, true);
+            }
+            
+        } catch (e) {
+            console.error("Calculation error:", e);
+        }
+    }
+
+        // Update bike summary with best equipment
+        function updateBikeSummary(wheelResults, frameResults) {
+            const bikeSummary = document.getElementById('bikeSummary');
+            
+            if (wheelResults.length === 0 || frameResults.length === 0) {
+                bikeSummary.innerHTML = '<strong>Best Equipment:</strong> No equipment matches your filters';
+                return;
+            }
+            
+            const bestWheel = wheelResults[0];
+            const bestFrame = frameResults[0];
+            
+            bikeSummary.innerHTML = `
+                <strong>Best Equipment:</strong> 
+                ${bestFrame.name} (Level ${bestFrame.currentLevel}) + ${bestWheel.name} = 
+                ${(bestFrame.totalSavings + bestWheel.totalSavings).toFixed(1)}s total savings
+            `;
         }
 
         function applyFrameFilters(frames) {
@@ -1485,8 +1498,6 @@
             for (let i = 0; i < rows.length; i++) {
                 if (rows[i].textContent.includes(frameName)) {
                     rows[i].classList.add('selected-frame');
-                    // Scroll the row into view if needed
-                    rows[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     break;
                 }
             }
@@ -1519,44 +1530,34 @@
                 
                 if (wheelChart) wheelChart.destroy();
 
-                // Find the default wheel (Zwift 32mm Carbon)
-                const defaultWheel = results.find(w => w.name.includes("32mm Carbon")) || results[0];
-                const defaultSavings = defaultWheel ? defaultWheel.totalSavings : 0;
-
-                // Prepare data for chart - showing savings vs default
-                const savingsData = results.map(wheel => (wheel.totalSavings - defaultSavings).toFixed(1));
-                const colors = results.map((wheel, index) => 
-                    index === 0 ? 'rgba(33, 150, 243, 0.8)' : 'rgba(200, 200, 200, 0.6)'
-                );
-
                 wheelChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: results.map(wheel => wheel.name),
-                        datasets: [{
-                            label: 'Time Savings vs Default Wheels (seconds)',
-                            data: savingsData,
-                            backgroundColor: colors,
-                            borderColor: 'rgba(0, 0, 0, 0.1)',
-                            borderWidth: 1
-                        }]
+                        datasets: [
+                            {
+                                label: 'Flat Savings',
+                                data: results.map(wheel => wheel.flatSavings),
+                                backgroundColor: results.map((wheel, index) => 
+                                    index === 0 ? 'rgba(33, 150, 243, 0.8)' : 'rgba(54, 162, 235, 0.6)'
+                                )
+                            },
+                            {
+                                label: 'Climb Savings',
+                                data: results.map(wheel => wheel.climbSavings),
+                                backgroundColor: results.map((wheel, index) => 
+                                    index === 0 ? 'rgba(255, 99, 132, 0.8)' : 'rgba(255, 159, 64, 0.6)'
+                                )
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false,
                         scales: {
-                            y: {
-                                title: { 
-                                    display: true, 
-                                    text: 'Time Savings (seconds)', 
-                                    color: '#666',
-                                    font: { weight: 'bold' }
-                                },
-                                beginAtZero: true,
-                                grid: { color: '#eee' }
-                            },
-                            x: {
-                                grid: { display: false }
+                            x: { stacked: true },
+                            y: { 
+                                stacked: false,
+                                title: { text: 'Time Savings (seconds)' }
                             }
                         },
                         plugins: {
@@ -1566,17 +1567,14 @@
                                         const wheel = results[context.dataIndex];
                                         return [
                                             `Wheel: ${wheel.name}`,
-                                            `Savings vs Default: ${context.raw}s`,
+                                            `Total: ${wheel.totalSavings.toFixed(1)}s`,
+                                            `Flat: ${wheel.flatSavings.toFixed(1)}s`,
+                                            `Climb: ${wheel.climbSavings.toFixed(1)}s`
                                         ];
                                     }
                                 }
-                            },
-                            legend: { display: false },
-                            datalabels: {
-                                display: false
                             }
                         },
-                        // Add click handler for chart bars
                         onClick: (e, elements) => {
                             if (elements.length > 0) {
                                 const index = elements[0].index;
@@ -1591,7 +1589,7 @@
             }
         }
 
-        function highlightWheel(wheelName) {
+        function highlightWheel(wheelName, preventScroll = false) {
             // Highlight in table
             document.querySelectorAll('#wheelResults tr').forEach(row => {
                 row.classList.remove('selected-wheel');
@@ -1602,8 +1600,10 @@
             for (let i = 0; i < rows.length; i++) {
                 if (rows[i].textContent.includes(wheelName)) {
                     rows[i].classList.add('selected-wheel');
-                    // Scroll the row into view if needed
-                    rows[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    // Only scroll if explicitly requested
+                    if (!preventScroll) {
+                        rows[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
                     break;
                 }
             }
@@ -1612,7 +1612,10 @@
             if (wheelChart) {
                 // Remove previous highlights
                 wheelChart.data.datasets[0].backgroundColor = wheelChart.data.labels.map((label, i) => 
-                    i === 0 ? 'rgba(33, 150, 243, 0.8)' : 'rgba(200, 200, 200, 0.6)'
+                    i === 0 ? 'rgba(33, 150, 243, 0.8)' : 'rgba(54, 162, 235, 0.6)'
+                );
+                wheelChart.data.datasets[1].backgroundColor = wheelChart.data.labels.map((label, i) => 
+                    i === 0 ? 'rgba(255, 99, 132, 0.8)' : 'rgba(255, 159, 64, 0.6)'
                 );
                 
                 // Find index of selected wheel
@@ -1620,6 +1623,7 @@
                 if (wheelIndex >= 0) {
                     // Highlight selected bar
                     wheelChart.data.datasets[0].backgroundColor[wheelIndex] = 'rgba(255, 159, 64, 0.8)';
+                    wheelChart.data.datasets[1].backgroundColor[wheelIndex] = 'rgba(255, 99, 132, 0.8)';
                     wheelChart.update();
                 }
             }
@@ -1643,15 +1647,8 @@
                     return;
                 }
 
-                // Find the default wheel (Zwift 32mm Carbon)
-                const defaultWheel = results.find(w => w.name.includes("32mm Carbon")) || results[0];
-                const defaultSavings = defaultWheel ? defaultWheel.totalSavings : 0;
-
                 results.forEach((wheel, index) => {
                     const row = table.insertRow();
-                    
-                    // Calculate savings vs default
-                    const savingsVsDefault = defaultWheel ? (wheel.totalSavings - defaultSavings).toFixed(1) : "N/A";
                     
                     row.innerHTML = `
                         <td>${index + 1}</td>
@@ -1667,7 +1664,10 @@
                         highlightWheel(wheel.name);
                     };
                     
-                    if (index === 0) row.classList.add('best');
+                    if (index === 0) {
+                        row.classList.add('best');
+                        row.classList.add('selected-wheel');
+                    }
                 });
             } catch (e) {
                 console.error("Wheel table update error:", e);
@@ -1856,9 +1856,13 @@
             document.getElementById('ftp').value = '300';
             document.getElementById('powerRange').value = '100';
             document.getElementById('powerRangeValue').textContent = '100%';
+            document.getElementById('power').value = '300';
             document.getElementById('avgSpeed').value = '30';
             document.getElementById('bikeType').value = 'road';
             document.getElementById('courseProfile').value = 'flat';
+            document.getElementById('routeSelect').value = 'custom';
+            document.getElementById('worldSelect').value = 'all';
+            document.getElementById('laps').value = '1';
             
             if (!isMetric) {
                 toggleUnits();
@@ -1866,6 +1870,197 @@
             
             calculate();
             updateSpeedTimeChart();
+        }
+
+        // Unit conversion functions
+        document.getElementById('unitSlider').addEventListener('click', toggleUnits);
+
+        function toggleUnits() {
+            isMetric = !isMetric;
+            updateUnitDisplay();
+            convertValues();
+            calculate();
+        }
+
+        function updateUnitDisplay() {
+            const slider = document.getElementById('unitSlider');
+            const labels = {
+                distance: ['km', 'mi'],
+                elevation: ['m', 'ft'],
+                weight: ['kg', 'lb']
+            };
+
+            Object.entries(labels).forEach(([id, units]) => {
+                document.getElementById(`${id}Label`).textContent = 
+                    `${id.charAt(0).toUpperCase() + id.slice(1)} (${units[isMetric ? 0 : 1]})`;
+            });
+
+            const metricHeightGroup = document.querySelector('.metric-height');
+            const imperialHeightGroup = document.querySelector('.imperial-height');
+            if (isMetric) {
+                metricHeightGroup.style.display = 'flex';
+                imperialHeightGroup.style.display = 'none';
+            } else {
+                metricHeightGroup.style.display = 'none';
+                imperialHeightGroup.style.display = 'flex';
+            }
+
+            slider.classList.toggle('imperial', !isMetric);
+            document.getElementById('unitLabel').textContent = isMetric ? 'Metric' : 'Imperial';
+        }
+
+        function convertValues() {
+            const elements = [
+                { id: 'distance', factor: conversion.milesToKm },
+                { id: 'elevation', factor: conversion.feetToM },
+                { id: 'weight', factor: conversion.lbToKg }
+            ];
+
+            elements.forEach(({ id, factor }) => {
+                const element = document.getElementById(id);
+                let value = parseFloat(element.value);
+                value = isMetric ? value * factor : value / factor;
+                element.value = value.toFixed(1);
+            });
+
+            if (isMetric) {
+                // Convert imperial to metric for height
+                const feet = parseFloat(document.getElementById('heightFeet').value) || 0;
+                const inches = parseFloat(document.getElementById('heightInches').value) || 0;
+                const totalInches = feet * 12 + inches;
+                const cm = totalInches * conversion.inToCm;
+                document.getElementById('height').value = cm.toFixed(0);
+            } else {
+                // Convert metric to imperial for height
+                const cm = parseFloat(document.getElementById('height').value) || 0;
+                const totalInches = cm / conversion.inToCm;
+                const feet = Math.floor(totalInches / 12);
+                const inches = totalInches % 12;
+                document.getElementById('heightFeet').value = feet.toFixed(0);
+                document.getElementById('heightInches').value = inches.toFixed(1);
+            }
+        }
+
+        // Populate frame levels table
+        function populateFrameLevelsTable() {
+            const tableBody = document.querySelector('#frameLevelsTable tbody');
+            tableBody.innerHTML = '';
+            
+            const frames = getBikeFrames();
+            const searchTerm = document.getElementById('frameLevelSearch').value.toLowerCase();
+            const typeFilter = document.getElementById('frameLevelTypeFilter').value;
+            
+            frames.forEach(frame => {
+                // Apply filters
+                if (searchTerm && !frame.name.toLowerCase().includes(searchTerm)) {
+                    return;
+                }
+                if (typeFilter !== 'all' && frame.type !== typeFilter) {
+                    return;
+                }
+                
+                const currentLevel = frameLevels[frame.name] || 0;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${frame.name}</td>
+                    <td>${frame.type}</td>
+                    <td>
+                        <select class="level-select" data-frame="${frame.name}" onchange="updateFrameLevel('${frame.name}', this.value)">
+                            <option value="0" ${currentLevel === 0 ? 'selected' : ''}>0</option>
+                            <option value="1" ${currentLevel === 1 ? 'selected' : ''}>1</option>
+                            <option value="2" ${currentLevel === 2 ? 'selected' : ''}>2</option>
+                            <option value="3" ${currentLevel === 3 ? 'selected' : ''}>3</option>
+                            <option value="4" ${currentLevel === 4 ? 'selected' : ''}>4</option>
+                            <option value="5" ${currentLevel === 5 ? 'selected' : ''}>5</option>
+                        </select>
+                    </td>
+                    <td>Flat: ${frame.flat0}s, Climb: ${frame.climb0}s</td>
+                    <td>Flat: ${frame.flat5}s, Climb: ${frame.climb5}s</td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Filter frame levels table
+        function filterFrameLevels() {
+            populateFrameLevelsTable();
+        }
+
+        // Update frame level in storage and recalculate
+        function updateFrameLevel(frameName, level) {
+            frameLevels[frameName] = parseInt(level);
+            saveFrameLevels();
+            calculate();
+        }
+
+        // Populate brand filters
+        function populateBrandFilters() {
+            try {
+                const brandFilters = document.getElementById('brandFilters');
+                brandFilters.innerHTML = '';
+                
+                const wheels = getWheels();
+                const brands = [...new Set(wheels.map(w => w.brand).filter(b => b))];
+                
+                brands.forEach(brand => {
+                    const chip = document.createElement('div');
+                    chip.className = 'filter-chip active';
+                    chip.textContent = brand;
+                    chip.dataset.brand = brand;
+                    chip.onclick = function() {
+                        this.classList.toggle('active');
+                    };
+                    brandFilters.appendChild(chip);
+                });
+            } catch (e) {
+                console.error("Error populating brand filters:", e);
+            }
+        }
+
+        // Populate frame brand filters
+        function populateFrameBrandFilters() {
+            try {
+                const frameBrandFilters = document.getElementById('frameBrandFilters');
+                frameBrandFilters.innerHTML = '';
+                
+                const frames = getBikeFrames();
+                const brands = [...new Set(frames.map(f => f.brand).filter(b => b))];
+                
+                brands.forEach(brand => {
+                    const chip = document.createElement('div');
+                    chip.className = 'filter-chip active';
+                    chip.textContent = brand;
+                    chip.dataset.brand = brand;
+                    chip.onclick = function() {
+                        this.classList.toggle('active');
+                    };
+                    frameBrandFilters.appendChild(chip);
+                });
+            } catch (e) {
+                console.error("Error populating frame brand filters:", e);
+            }
+        }
+
+        // Toggle all brands in a filter group
+        function toggleAllBrands(filterGroupId) {
+            const filterGroup = document.getElementById(filterGroupId);
+            const chips = filterGroup.querySelectorAll('.filter-chip');
+            const selectAllText = filterGroup.previousElementSibling.querySelector('.brand-select-all');
+            
+            // Check if all are currently active
+            const allActive = Array.from(chips).every(chip => chip.classList.contains('active'));
+            
+            if (allActive) {
+                // Deselect all
+                chips.forEach(chip => chip.classList.remove('active'));
+                selectAllText.textContent = 'Select All';
+            } else {
+                // Select all
+                chips.forEach(chip => chip.classList.add('active'));
+                selectAllText.textContent = 'Deselect All';
+            }
         }
 
         // Initialize the app when the page loads
