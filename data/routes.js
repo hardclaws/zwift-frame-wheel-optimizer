@@ -808,19 +808,6 @@ window.routes = [
         xp: 0
     },
     {
-        name: "11.1 Ocean Blvd",
-        world: "W",
-        category: "Watopia",
-        lapDistance: 10.5,
-        lapElevation: 48,
-        leadInDistance: 0.5,
-        leadInElevation: 3,
-        gradient: 0.5,
-        metersPerKm: 4.5,
-        difficulty: 2,
-        xp: 440
-    },
-    {
         name: "Zwift Gran Fondo",
         world: "W",
         category: "Watopia",
@@ -1263,19 +1250,6 @@ window.routes = [
         xp: 755
     },
     {
-        name: "Handful of Gravel Run",
-        world: "W",
-        category: "Watopia",
-        lapDistance: 6.1,
-        lapElevation: 75,
-        leadInDistance: 4.3,
-        leadInElevation: 19,
-        gradient: 1.2,
-        metersPerKm: 12.2,
-        difficulty: 1,
-        xp: 125
-    },
-    {
         name: "Eastern Eight",
         world: "W",
         category: "Watopia",
@@ -1716,19 +1690,6 @@ window.routes = [
         metersPerKm: 10.4,
         difficulty: 2,
         xp: 460
-    },
-    {
-        name: "Hilly Route Reverse Run",
-        world: "W",
-        category: "Watopia",
-        lapDistance: 9.2,
-        lapElevation: 109,
-        leadInDistance: 0.2,
-        leadInElevation: 0,
-        gradient: 1.2,
-        metersPerKm: 11.8,
-        difficulty: 2,
-        xp: 180
     },
     {
         name: "Deca Dash",
