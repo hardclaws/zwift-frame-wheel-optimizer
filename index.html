@@ -1402,7 +1402,7 @@
                 
                 // Calculate hydration needs (ml per hour based on intensity and conditions)
                 const hydrationRate = 500 + (power / 3); // Base 500ml + 1ml per 3 watts
-                const totalHydration = Math.min(Math.round(hydrationRate * durationHours), 1500); // Cap at 1.5L for safety
+                const totalHydration = Math.min(Math.round(hydrationRate * durationHours)); // Cap at 1.5L for safety
                 const bottlesNeeded = Math.ceil(totalHydration / 750); // Standard bottle size
                 
                 // Calculate carb intake (30-90g per hour based on intensity)
