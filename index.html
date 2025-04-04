@@ -573,6 +573,27 @@
             color: var(--primary-color);
         }
 
+        /* New styles for all-in-one bikes */
+        .no-wheels-badge {
+            display: inline-block;
+            background-color: #ff9800;
+            color: white;
+            font-size: 0.7em;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .frame-levels-table th:nth-child(6),
+        .frame-levels-table td:nth-child(6) {
+            text-align: center;
+        }
+
+        .all-in-one-row {
+            background-color: #fff8e1;
+        }
+
         @media (max-width: 768px) {
             .control-panel, .input-grid, .results-container, .speed-time-container, .training-details {
                 grid-template-columns: 1fr;
@@ -920,6 +941,7 @@
                                 <th>Current Level</th>
                                 <th>Level 0 Stats</th>
                                 <th>Level 5 Stats</th>
+                                <th>Accepts Wheels</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1388,7 +1410,7 @@
                 const totalCarbs = Math.round(carbRate * durationHours);
                 
                 // Calculate electrolyte needs (sodium mg per hour)
-                const sodiumRate = 350 + (power / 2); // 400-700mg per hour
+                const sodiumRate = 400 + (power / 2); // 400-700mg per hour
                 const totalSodium = Math.round(sodiumRate * durationHours);
                 
                 // Calculate fueling intervals (every 20-40 minutes based on intensity)
@@ -1658,17 +1680,27 @@
                     };
                 }).sort((a, b) => b.totalSavings - a.totalSavings);
                 
-                updateChart(wheelResults);
+                // Check if the best frame is an all-in-one bike
+                const framesData = getBikeFrames();
+                const bestFrameData = framesData.find(f => f.name === frameResults[0].name);
+
+                if (!(bestFrameData && bestFrameData.noWheels)) {
+                    updateChart(wheelResults);
+                    updateWheelTable(wheelResults);
+                    
+                    if (wheelResults.length > 0) {
+                        highlightWheel(wheelResults[0].name, true);
+                    }
+                } else {
+                    updateChart([]);
+                    updateWheelTable([]);
+                }
+                
                 updateFrameChart(frameResults);
-                updateWheelTable(wheelResults);
                 updateFrameTable(frameResults);
                 
                 updateBikeSummary(wheelResults, frameResults);
                 
-                if (wheelResults.length > 0) {
-                    highlightWheel(wheelResults[0].name, true);
-                }
-
                 calculateFuelingPlan(inputs.distance, inputs.avgSpeed, inputs.power);
                 
                 const profile = document.getElementById('courseProfile').value;
@@ -1683,19 +1715,34 @@
         function updateBikeSummary(wheelResults, frameResults) {
             const bikeSummary = document.getElementById('bikeSummary');
             
-            if (wheelResults.length === 0 || frameResults.length === 0) {
-                bikeSummary.innerHTML = '<strong>Best Equipment:</strong> No equipment matches your filters';
+            if (frameResults.length === 0) {
+                bikeSummary.innerHTML = '<strong>Best Equipment:</strong> No frames available for this bike type';
                 return;
             }
             
-            const bestWheel = wheelResults[0];
             const bestFrame = frameResults[0];
+            const frames = getBikeFrames();
+            const frameData = frames.find(f => f.name === bestFrame.name);
             
-            bikeSummary.innerHTML = `
-                <strong>Best Equipment:</strong> 
-                ${bestFrame.name} (Level ${bestFrame.currentLevel}) + ${bestWheel.name} = 
-                ${(bestFrame.totalSavings + bestWheel.totalSavings).toFixed(1)}s total savings
-            `;
+            if (frameData && frameData.noWheels) {
+                bikeSummary.innerHTML = `
+                    <strong>Best Equipment:</strong> 
+                    ${bestFrame.name} (Level ${bestFrame.currentLevel}) - All-in-one bike (no wheels)
+                    <span class="no-wheels-badge">All-in-One</span>
+                `;
+            } else {
+                if (wheelResults.length === 0) {
+                    bikeSummary.innerHTML = '<strong>Best Equipment:</strong> No wheels match your filters';
+                    return;
+                }
+                
+                const bestWheel = wheelResults[0];
+                bikeSummary.innerHTML = `
+                    <strong>Best Equipment:</strong> 
+                    ${bestFrame.name} (Level ${bestFrame.currentLevel}) + ${bestWheel.name} = 
+                    ${(bestFrame.totalSavings + bestWheel.totalSavings).toFixed(1)}s total savings
+                `;
+            }
         }
 
         function applyFrameFilters(frames) {
@@ -2234,23 +2281,29 @@
                 }
                 
                 const currentLevel = frameLevels[frame.name] || 0;
+                const acceptsWheels = !frame.noWheels;
                 
                 const row = document.createElement('tr');
+                if (frame.noWheels) {
+                    row.classList.add('all-in-one-row');
+                }
+                
                 row.innerHTML = `
-                    <td>${frame.name}</td>
+                    <td>
+                        ${frame.name}
+                        ${frame.noWheels ? '<span class="no-wheels-badge" title="This bike has integrated wheels and cannot be customized">All-in-One</span>' : ''}
+                    </td>
                     <td>${frame.type}</td>
                     <td>
                         <select class="level-select" data-frame="${frame.name}" onchange="updateFrameLevel('${frame.name}', this.value)">
-                            <option value="0" ${currentLevel === 0 ? 'selected' : ''}>0</option>
-                            <option value="1" ${currentLevel === 1 ? 'selected' : ''}>1</option>
-                            <option value="2" ${currentLevel === 2 ? 'selected' : ''}>2</option>
-                            <option value="3" ${currentLevel === 3 ? 'selected' : ''}>3</option>
-                            <option value="4" ${currentLevel === 4 ? 'selected' : ''}>4</option>
-                            <option value="5" ${currentLevel === 5 ? 'selected' : ''}>5</option>
+                            ${[0,1,2,3,4,5].map(lvl => 
+                                `<option value="${lvl}" ${currentLevel === lvl ? 'selected' : ''}>${lvl}</option>`
+                            ).join('')}
                         </select>
                     </td>
                     <td>Flat: ${frame.flat0}s, Climb: ${frame.climb0}s</td>
                     <td>Flat: ${frame.flat5}s, Climb: ${frame.climb5}s</td>
+                    <td>${acceptsWheels ? 'Yes' : 'No'}</td>
                 `;
                 
                 tableBody.appendChild(row);
