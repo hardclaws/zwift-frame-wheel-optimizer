@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zwift Frame/Wheel Optimizer Pro</title>
+    <title>Zwift Wheel Optimizer Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2"></script>
@@ -899,7 +899,6 @@
         }
 
         function getBikeFrames() {
-            // Extract brand from first word of frame name if not specified
             const frames = window.bikeFrames || [];
             return frames.map(frame => {
                 if (!frame.brand) {
@@ -912,11 +911,10 @@
         function calculateCourseProfile(elevation, distance) {
             const metersPerKm = elevation / distance;
             
-            // Classification thresholds:
-            if (metersPerKm < 5) return 'flat';        // < 5m/km
-            if (metersPerKm < 10) return 'rolling';    // 5-10m/km
-            if (metersPerKm < 15) return 'hilly';      // 10-15m/km
-            return 'mountainous';                      // 15m+/km
+            if (metersPerKm < 5) return 'flat';
+            if (metersPerKm < 10) return 'rolling';
+            if (metersPerKm < 15) return 'hilly';
+            return 'mountainous';
         }
 
         // Load custom wheels and frame levels from localStorage
@@ -933,7 +931,6 @@
                 if (savedFrameLevels) {
                     frameLevels = JSON.parse(savedFrameLevels);
                 } else {
-                    // Initialize all frames to level 0
                     const frames = getBikeFrames();
                     frames.forEach(frame => {
                         frameLevels[frame.name] = 0;
@@ -952,7 +949,6 @@
 
         // Calculate intermediate frame stats between level 0 and 5
         function getFrameStatsAtLevel(frame, level) {
-            // Linear interpolation between level 0 and 5
             const progress = level / 5;
             return {
                 flat: Math.round(frame.flat0 + (frame.flat5 - frame.flat0) * progress),
@@ -973,17 +969,10 @@
                 };
             }
             
-            // Update the course profile dropdown
-            const profile = calculateCourseProfile(route.lapElevation, route.lapDistance);
-            document.getElementById('courseProfile').value = profile;
+            document.getElementById('courseProfile').value = calculateCourseProfile(route.lapElevation, route.lapDistance);
             
-            // Calculate climbing percentage of total distance
             const climbingPercentage = (route.lapElevation / (route.lapDistance * 1000)) * 100;
-            
-            // Gradient severity factor (0-1.5)
             const gradientSeverity = Math.min(route.gradient / 10, 1.5);
-            
-            // Combined importance (0-1)
             return Math.min((climbingPercentage * gradientSeverity) / 100, 0.95);
         }
 
@@ -991,15 +980,12 @@
         function getDynamicRatios(route) {
             const climbingImportance = calculateClimbingImportance(route);
             
-            // Base ratios that can be adjusted by up to ±0.2 based on gradient
             let flatRatio = 0.7 - (climbingImportance * 0.65);
             let climbRatio = 0.3 + (climbingImportance * 0.65);
             
-            // Ensure ratios stay within bounds
             flatRatio = Math.max(0.05, Math.min(0.95, flatRatio));
             climbRatio = Math.max(0.05, Math.min(0.95, climbRatio));
             
-            // Normalize to sum to 1
             const sum = flatRatio + climbRatio;
             return {
                 flatRatio: flatRatio / sum,
@@ -1019,7 +1005,6 @@
                 setupInputEventListeners();
                 populateFrameLevelsTable();
                 
-                // Initial calculations
                 calculate();
                 updateSpeedTimeChart();
             } catch (e) {
@@ -1029,21 +1014,17 @@
 
         // Tab navigation
         function openTab(tabId) {
-            // Hide all tab panes
             document.querySelectorAll('.tab-pane').forEach(pane => {
                 pane.classList.remove('active');
             });
             
-            // Deactivate all tab buttons
             document.querySelectorAll('.tab-button').forEach(button => {
                 button.classList.remove('active');
             });
             
-            // Activate selected tab
             document.getElementById(tabId).classList.add('active');
             document.querySelector(`.tab-button[onclick="openTab('${tabId}')"]`).classList.add('active');
             
-            // Special handling for frame levels tab
             if (tabId === 'frameLevels') {
                 populateFrameLevelsTable();
             }
@@ -1051,7 +1032,6 @@
 
         // Set up all input event listeners
         function setupInputEventListeners() {
-            // Inputs that should trigger full recalculation
             const calculationInputs = [
                 'weight', 'height', 'heightFeet', 'heightInches', 
                 'distance', 'elevation', 'avgSpeed', 'courseProfile', 
@@ -1067,7 +1047,6 @@
                 });
             });
 
-            // Power input synchronization
             document.getElementById('powerRange').addEventListener('input', function() {
                 const ftp = parseInput('ftp');
                 const percentage = parseFloat(this.value);
@@ -1101,7 +1080,6 @@
             const worldSelect = document.getElementById('worldSelect');
             worldSelect.innerHTML = '<option value="all">All Worlds</option>';
             
-            // Get unique world categories
             const worldCategories = [...new Set(window.routes.map(route => route.category.split(' - ')[0]))];
             
             worldCategories.forEach(category => {
@@ -1120,15 +1098,12 @@
             const routeSelect = document.getElementById('routeSelect');
             routeSelect.innerHTML = '<option value="custom">Custom Route</option>';
             
-            // Filter routes by selected category prefix
             const filteredRoutes = selectedCategoryPrefix === 'all' 
                 ? window.routes 
                 : window.routes.filter(route => route.category.startsWith(selectedCategoryPrefix));
             
-            // Sort routes alphabetically by name
             filteredRoutes.sort((a, b) => a.name.localeCompare(b.name));
             
-            // Group routes by category
             const categories = {};
             filteredRoutes.forEach(route => {
                 if (!categories[route.category]) {
@@ -1137,7 +1112,6 @@
                 categories[route.category].push(route);
             });
             
-            // Add options grouped by category
             Object.entries(categories).forEach(([category, routes]) => {
                 const optgroup = document.createElement('optgroup');
                 optgroup.label = category;
@@ -1152,7 +1126,6 @@
                 routeSelect.appendChild(optgroup);
             });
             
-            // Reset to custom if no routes match
             if (filteredRoutes.length === 0) {
                 routeSelect.value = 'custom';
             }
@@ -1164,15 +1137,12 @@
         function populateRouteSelect() {
             const routeSelect = document.getElementById('routeSelect');
             
-            // Clear existing options except the first one
             while (routeSelect.options.length > 1) {
                 routeSelect.remove(1);
             }
             
-            // Sort routes alphabetically by name
             const sortedRoutes = [...window.routes].sort((a, b) => a.name.localeCompare(b.name));
             
-            // Group routes by category
             const categories = {};
             sortedRoutes.forEach(route => {
                 if (!categories[route.category]) {
@@ -1181,7 +1151,6 @@
                 categories[route.category].push(route);
             });
             
-            // Add options grouped by category
             Object.entries(categories).forEach(([category, routes]) => {
                 const optgroup = document.createElement('optgroup');
                 optgroup.label = category;
@@ -1218,19 +1187,15 @@
             
             const laps = parseInt(document.getElementById('laps').value) || 1;
             
-            // Calculate total distance and elevation
             const totalDistance = (route.lapDistance * laps) + (route.leadInDistance || 0);
             const totalElevation = (route.lapElevation * laps) + (route.leadInElevation || 0);
             
-            // Calculate profile
             const profile = calculateCourseProfile(route.lapElevation, route.lapDistance);
             
-            // Update inputs
             document.getElementById('distance').value = totalDistance.toFixed(1);
             document.getElementById('elevation').value = Math.round(totalElevation);
             document.getElementById('courseProfile').value = profile;
             
-            // Update route summary
             document.getElementById('routeSummary').innerHTML = 
                 `<strong>Route Summary:</strong> ${route.name} (${laps} ${laps === 1 ? 'lap' : 'laps'}) - ${totalDistance.toFixed(1)} km, ${Math.round(totalElevation)} m elevation (${profile})`;
             
@@ -1247,11 +1212,9 @@
                 
                 if (speedTimeChart) speedTimeChart.destroy();
 
-                // Generate speed values from 10 to 60 km/h in 1 km/h increments
                 const speeds = Array.from({length: 51}, (_, i) => 10 + i);
-                const times = speeds.map(speed => distance / speed * 3600); // Time in seconds
+                const times = speeds.map(speed => distance / speed * 3600);
                 
-                // Find the index of the current speed (or closest)
                 const currentSpeedIndex = Math.min(Math.max(Math.round(currentSpeed) - 10, 0), 50);
                 const currentTime = times[currentSpeedIndex];
                 
@@ -1338,7 +1301,6 @@
                     }
                 });
 
-                // Update fueling plan when speed changes
                 calculateFuelingPlan(distance, currentSpeed, power);
             } catch (e) {
                 console.error("Speed-time chart update error:", e);
@@ -1357,35 +1319,34 @@
                 const durationHours = distance / speed;
                 const durationMinutes = durationHours * 60;
                 
-                // Calculate calories burned
-                // MET formula: METs = (power * 3.6) / (weight * 3.5) * 0.005
-                // Calories = METs * weight * durationHours
-                const metValue = (power * 3.6) / (weight * 3.5) * 0.005;
-                const caloriesBurned = metValue * weight * durationHours;
+                // CORRECTED Calorie calculation
+                const totalJoules = power * durationHours * 3600; // 1 W = 1 J/s
+                const efficiencyFactor = 0.25; // 25% efficiency for cycling
+                const caloriesBurned = Math.round((totalJoules / efficiencyFactor) / 4184); // Convert to kcal
                 
                 // Calculate hydration needs (ml per hour based on intensity and conditions)
-                const hydrationRate = 500 + (power / 300 * 300); // Base 500ml + intensity adjustment
-                const totalHydration = Math.round(hydrationRate * durationHours);
+                const hydrationRate = 500 + (power / 3); // Base 500ml + 1ml per 3 watts
+                const totalHydration = Math.min(Math.round(hydrationRate * durationHours), 1500); // Cap at 1.5L for safety
                 const bottlesNeeded = Math.ceil(totalHydration / 750); // Standard bottle size
                 
                 // Calculate carb intake (30-90g per hour based on intensity)
-                const carbRate = 30 + (power / 300 * 60); // 30-90g per hour
+                const carbRate = Math.min(30 + (power / 4), 90); // 30-90g per hour (max 90g)
                 const totalCarbs = Math.round(carbRate * durationHours);
                 
                 // Calculate electrolyte needs (sodium mg per hour)
-                const sodiumRate = 500 + (power / 300 * 300); // 500-800mg per hour
+                const sodiumRate = 400 + (power / 2); // 400-700mg per hour
                 const totalSodium = Math.round(sodiumRate * durationHours);
                 
-                // Calculate fueling intervals (every 20-30 minutes)
-                const intervalMinutes = power > 250 ? 20 : 30;
-                const intervals = Math.floor(durationMinutes / intervalMinutes);
+                // Calculate fueling intervals (every 20-40 minutes based on intensity)
+                const intervalMinutes = power > 200 ? 20 : (power > 150 ? 25 : 30);
+                const intervals = Math.max(1, Math.floor(durationMinutes / intervalMinutes));
                 
                 // Update summary
                 const fuelingSummary = document.getElementById('fuelingSummary');
                 fuelingSummary.innerHTML = `
                     <h4>Nutrition & Hydration Summary</h4>
                     <ul>
-                        <li><strong>Estimated Calories Burned:</strong> ${Math.round(caloriesBurned * 1000)} calories</li>
+                        <li><strong>Estimated Calories Burned:</strong> ${caloriesBurned} kcal</li>
                         <li><strong>Hydration Needed:</strong> ${totalHydration} ml (${bottlesNeeded} bottles)</li>
                         <li><strong>Carbohydrates Needed:</strong> ${totalCarbs}g (${Math.round(carbRate)}g/hour)</li>
                         <li><strong>Sodium Needed:</strong> ${totalSodium}mg (${Math.round(sodiumRate)}mg/hour)</li>
@@ -1410,7 +1371,6 @@
                             const intervalMins = intervalTime % 60;
                             const timeString = `${intervalHours > 0 ? intervalHours + 'h ' : ''}${intervalMins}m`;
                             
-                            // Alternate between carb and hydration focus
                             const isHydrationInterval = i % 2 === 0;
                             
                             if (isHydrationInterval) {
@@ -1446,21 +1406,19 @@
         // Main calculation function with simplified wheel recommendations
         function calculate() {
             try {
-                // Get all input values
                 const inputs = {
                     bikeType: document.getElementById('bikeType').value,
-                    distance: parseInput('distance'), // in km
-                    elevation: parseInput('elevation'), // in meters
-                    weight: parseInput('weight'), // in kg
+                    distance: parseInput('distance'),
+                    elevation: parseInput('elevation'),
+                    weight: parseInput('weight'),
                     height: isMetric ? parseInput('height') : 
-                        (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm, // in cm
-                    power: parseInput('power'), // in watts (direct input)
-                    powerPercentage: parseInput('powerRange') / 100, // as decimal
-                    avgSpeed: parseInput('avgSpeed'), // in km/h
+                        (parseInput('heightFeet') * 12 + parseInput('heightInches')) * conversion.inToCm,
+                    power: parseInput('power'),
+                    powerPercentage: parseInput('powerRange') / 100,
+                    avgSpeed: parseInput('avgSpeed'),
                     laps: parseInput('laps') || 1
                 };
 
-                // Check if a specific route is selected
                 const routeSelect = document.getElementById('routeSelect');
                 const selectedRouteName = routeSelect.value;
                 let selectedRoute = null;
@@ -1469,28 +1427,20 @@
                     selectedRoute = window.routes.find(r => r.name === selectedRouteName);
                 }
 
-                // Calculate climbing importance (0-1 where 0 is flat, 1 is very hilly)
                 const metersPerKm = (inputs.elevation / inputs.distance);
-                const climbingImportance = Math.min(metersPerKm / 20, 0.95); // 20m/km is very hilly
+                const climbingImportance = Math.min(metersPerKm / 20, 0.95);
                 
-                // Base time calculation - adjusted for power percentage
-                const baseTime = (inputs.distance / inputs.avgSpeed) * 3600; // in seconds
+                const baseTime = (inputs.distance / inputs.avgSpeed) * 3600;
                 
-                // Get all wheels and apply filters
                 let wheels = getWheels();
                 wheels = applyActiveFilters(wheels);
                 
-                // Calculate time savings for each wheel - now power-adjusted
                 const wheelResults = wheels.map(wheel => {
                     const wheelPerf = wheel.performance[inputs.bikeType] || wheel.performance.road;
                     
-                    // Weight adjustment (heavier riders benefit less from climbing wheels)
                     const weightFactor = Math.pow(inputs.weight / 75, 0.7); 
-                    
-                    // Power adjustment factor (higher power means more benefit from aero)
                     const powerFactor = Math.min(1 + (inputs.powerPercentage - 1) * 0.5, 1.5);
                     
-                    // Calculate savings - now power-adjusted
                     const flatSavings = wheelPerf.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
                     const climbSavings = wheelPerf.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
                     const totalSavings = flatSavings + climbSavings;
@@ -1505,26 +1455,21 @@
                     };
                 }).sort((a, b) => b.totalSavings - a.totalSavings);
                 
-                // Get all frames and apply filters
                 let frames = getBikeFrames();
                 frames = applyFrameFilters(frames);
                 frames = frames.filter(frame => frame.type === inputs.bikeType);
                 
-                // Calculate time savings for each frame - now power-adjusted
                 const frameResults = frames.map(frame => {
                     const currentLevel = frameLevels[frame.name] || 0;
                     const currentStats = getFrameStatsAtLevel(frame, currentLevel);
                     
-                    // Apply same weight and power sensitivity as wheels
                     const weightFactor = Math.pow(inputs.weight / 75, 0.7);
                     const powerFactor = Math.min(1 + (inputs.powerPercentage - 1) * 0.5, 1.5);
                     
-                    // Current level savings
                     const currentFlatSavings = currentStats.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
                     const currentClimbSavings = currentStats.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
                     const currentTotalSavings = currentFlatSavings + currentClimbSavings;
                     
-                    // Next level savings (if applicable)
                     let nextLevelGain = 0;
                     if (currentLevel < 5) {
                         const nextStats = getFrameStatsAtLevel(frame, currentLevel + 1);
@@ -1544,21 +1489,17 @@
                     };
                 }).sort((a, b) => b.totalSavings - a.totalSavings);
                 
-                // Update charts and tables
                 updateChart(wheelResults);
                 updateFrameChart(frameResults);
                 updateWheelTable(wheelResults);
                 updateFrameTable(frameResults);
                 
-                // Update bike summary
                 updateBikeSummary(wheelResults, frameResults);
                 
-                // Highlight top wheel by default
                 if (wheelResults.length > 0) {
                     highlightWheel(wheelResults[0].name, true);
                 }
 
-                // Update fueling plan
                 calculateFuelingPlan(inputs.distance, inputs.avgSpeed, inputs.power);
                 
             } catch (e) {
@@ -1587,7 +1528,6 @@
 
         function applyFrameFilters(frames) {
             try {
-                // Apply frame brand filters
                 const activeBrands = Array.from(document.querySelectorAll('#frameBrandFilters .filter-chip.active'))
                     .map(chip => chip.dataset.brand);
                 
@@ -1595,7 +1535,6 @@
                     frames = frames.filter(frame => activeBrands.includes(frame.brand));
                 }
                 
-                // Apply search filter
                 const searchTerm = document.getElementById('frameSearch').value.toLowerCase();
                 if (searchTerm) {
                     frames = frames.filter(frame => 
@@ -1681,12 +1620,10 @@
         }
 
         function highlightFrame(frameName) {
-            // Highlight in table
             document.querySelectorAll('#frameResults tr').forEach(row => {
                 row.classList.remove('selected-frame');
             });
             
-            // Find and highlight the row with the matching frame name
             const rows = document.querySelectorAll('#frameResults tr');
             for (let i = 0; i < rows.length; i++) {
                 if (rows[i].textContent.includes(frameName)) {
@@ -1695,17 +1632,13 @@
                 }
             }
             
-            // Highlight in chart if available
             if (frameChart) {
-                // Remove previous highlights
                 frameChart.data.datasets[0].backgroundColor = frameChart.data.labels.map((label, i) => 
                     i === 0 ? 'rgba(33, 150, 243, 0.8)' : 'rgba(54, 162, 235, 0.6)'
                 );
                 
-                // Find index of selected frame
                 const frameIndex = frameChart.data.labels.indexOf(frameName);
                 if (frameIndex >= 0) {
-                    // Highlight selected bar
                     frameChart.data.datasets[0].backgroundColor[frameIndex] = 'rgba(255, 159, 64, 0.8)';
                     frameChart.update();
                 }
@@ -1783,17 +1716,14 @@
         }
 
         function highlightWheel(wheelName, preventScroll = false) {
-            // Highlight in table
             document.querySelectorAll('#wheelResults tr').forEach(row => {
                 row.classList.remove('selected-wheel');
             });
             
-            // Find and highlight the row with the matching wheel name
             const rows = document.querySelectorAll('#wheelResults tr');
             for (let i = 0; i < rows.length; i++) {
                 if (rows[i].textContent.includes(wheelName)) {
                     rows[i].classList.add('selected-wheel');
-                    // Only scroll if explicitly requested
                     if (!preventScroll) {
                         rows[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }
@@ -1801,9 +1731,7 @@
                 }
             }
             
-            // Highlight in chart if available
             if (wheelChart) {
-                // Remove previous highlights
                 wheelChart.data.datasets[0].backgroundColor = wheelChart.data.labels.map((label, i) => 
                     i === 0 ? 'rgba(33, 150, 243, 0.8)' : 'rgba(54, 162, 235, 0.6)'
                 );
@@ -1811,10 +1739,8 @@
                     i === 0 ? 'rgba(255, 99, 132, 0.8)' : 'rgba(255, 159, 64, 0.6)'
                 );
                 
-                // Find index of selected wheel
                 const wheelIndex = wheelChart.data.labels.indexOf(wheelName);
                 if (wheelIndex >= 0) {
-                    // Highlight selected bar
                     wheelChart.data.datasets[0].backgroundColor[wheelIndex] = 'rgba(255, 159, 64, 0.8)';
                     wheelChart.data.datasets[1].backgroundColor[wheelIndex] = 'rgba(255, 99, 132, 0.8)';
                     wheelChart.update();
@@ -1852,7 +1778,6 @@
                         </td>
                     `;
                     
-                    // Add click handler to highlight row and corresponding chart bar
                     row.onclick = function() {
                         highlightWheel(wheel.name);
                     };
@@ -1899,7 +1824,6 @@
                         </td>
                     `;
                     
-                    // Add click handler to highlight row and corresponding chart bar
                     row.onclick = function() {
                         highlightFrame(frame.name);
                     };
@@ -1932,7 +1856,6 @@
                     return;
                 }
 
-                // Add the new wheel to the wheels array
                 const newWheel = { 
                     name: wheelName, 
                     brand: wheelBrand,
@@ -1949,14 +1872,10 @@
                 
                 window.wheels.push(newWheel);
                 
-                // Save custom wheels to localStorage
                 const customWheels = window.wheels.filter(w => w.custom);
                 localStorage.setItem('customWheels', JSON.stringify(customWheels));
 
-                // Clear the form
                 clearCustomForm();
-
-                // Re-run calculations
                 calculate();
                 populateBrandFilters();
             } catch (e) {
@@ -1968,7 +1887,6 @@
             try {
                 window.wheels = window.wheels.filter(wheel => wheel.name !== wheelName);
                 
-                // Update localStorage
                 const customWheels = window.wheels.filter(w => w.custom);
                 localStorage.setItem('customWheels', JSON.stringify(customWheels));
                 
@@ -1989,7 +1907,6 @@
         // Filter functions
         function applyActiveFilters(wheels) {
             try {
-                // Apply brand filters
                 const activeBrands = Array.from(document.querySelectorAll('#brandFilters .filter-chip.active'))
                     .map(chip => chip.dataset.brand);
                 
@@ -1997,7 +1914,6 @@
                     wheels = wheels.filter(wheel => activeBrands.includes(wheel.brand));
                 }
                 
-                // Apply search filter
                 const searchTerm = document.getElementById('wheelSearch').value.toLowerCase();
                 if (searchTerm) {
                     wheels = wheels.filter(wheel => 
@@ -2018,21 +1934,17 @@
         }
 
         function resetFilters() {
-            // Reset brand filters
             document.querySelectorAll('#brandFilters .filter-chip').forEach(chip => {
                 chip.classList.add('active');
             });
             
-            // Reset frame brand filters
             document.querySelectorAll('#frameBrandFilters .filter-chip').forEach(chip => {
                 chip.classList.add('active');
             });
             
-            // Reset search
             document.getElementById('wheelSearch').value = '';
             document.getElementById('frameSearch').value = '';
             
-            // Update select all text
             document.querySelectorAll('.brand-select-all').forEach(el => {
                 el.textContent = 'Deselect All';
             });
@@ -2117,14 +2029,12 @@
             });
 
             if (isMetric) {
-                // Convert imperial to metric for height
                 const feet = parseFloat(document.getElementById('heightFeet').value) || 0;
                 const inches = parseFloat(document.getElementById('heightInches').value) || 0;
                 const totalInches = feet * 12 + inches;
                 const cm = totalInches * conversion.inToCm;
                 document.getElementById('height').value = cm.toFixed(0);
             } else {
-                // Convert metric to imperial for height
                 const cm = parseFloat(document.getElementById('height').value) || 0;
                 const totalInches = cm / conversion.inToCm;
                 const feet = Math.floor(totalInches / 12);
@@ -2144,7 +2054,6 @@
             const typeFilter = document.getElementById('frameLevelTypeFilter').value;
             
             frames.forEach(frame => {
-                // Apply filters
                 if (searchTerm && !frame.name.toLowerCase().includes(searchTerm)) {
                     return;
                 }
@@ -2242,15 +2151,12 @@
             const chips = filterGroup.querySelectorAll('.filter-chip');
             const selectAllText = filterGroup.previousElementSibling.querySelector('.brand-select-all');
             
-            // Check if all are currently active
             const allActive = Array.from(chips).every(chip => chip.classList.contains('active'));
             
             if (allActive) {
-                // Deselect all
                 chips.forEach(chip => chip.classList.remove('active'));
                 selectAllText.textContent = 'Select All';
             } else {
-                // Select all
                 chips.forEach(chip => chip.classList.add('active'));
                 selectAllText.textContent = 'Deselect All';
             }
