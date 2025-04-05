@@ -1044,6 +1044,58 @@
             localStorage.setItem('frameLevels', JSON.stringify(frameLevels));
         }
 
+        // Save user settings to localStorage
+        function saveUserSettings() {
+            const settings = {
+                weight: document.getElementById('weight').value,
+                height: document.getElementById('height').value,
+                heightFeet: document.getElementById('heightFeet').value,
+                heightInches: document.getElementById('heightInches').value,
+                ftp: document.getElementById('ftp').value,
+                power: document.getElementById('power').value,
+                powerRange: document.getElementById('powerRange').value,
+                distance: document.getElementById('distance').value,
+                elevation: document.getElementById('elevation').value,
+                avgSpeed: document.getElementById('avgSpeed').value,
+                courseProfile: document.getElementById('courseProfile').value,
+                laps: document.getElementById('laps').value,
+                routeSelect: document.getElementById('routeSelect').value,
+                worldSelect: document.getElementById('worldSelect').value,
+                isMetric: isMetric
+            };
+            localStorage.setItem('userSettings', JSON.stringify(settings));
+        }
+
+        // Load user settings from localStorage
+        function loadUserSettings() {
+            const savedSettings = localStorage.getItem('userSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                
+                // Restore metric/imperial state
+                if (settings.isMetric !== undefined && settings.isMetric !== isMetric) {
+                    toggleUnits(); // This will update the UI and convert values if needed
+                }
+                
+                // Restore input values
+                document.getElementById('weight').value = settings.weight || '75';
+                document.getElementById('height').value = settings.height || '175';
+                document.getElementById('heightFeet').value = settings.heightFeet || '';
+                document.getElementById('heightInches').value = settings.heightInches || '';
+                document.getElementById('ftp').value = settings.ftp || '300';
+                document.getElementById('power').value = settings.power || '300';
+                document.getElementById('powerRange').value = settings.powerRange || '100';
+                document.getElementById('powerRangeValue').textContent = (settings.powerRange || '100') + '%';
+                document.getElementById('distance').value = settings.distance || '30';
+                document.getElementById('elevation').value = settings.elevation || '150';
+                document.getElementById('avgSpeed').value = settings.avgSpeed || '30';
+                document.getElementById('courseProfile').value = settings.courseProfile || 'flat';
+                document.getElementById('laps').value = settings.laps || '1';
+                document.getElementById('routeSelect').value = settings.routeSelect || 'custom';
+                document.getElementById('worldSelect').value = settings.worldSelect || 'all';
+            }
+        }
+
         // Calculate intermediate frame stats between level 0 and 5
         function getFrameStatsAtLevel(frame, level) {
             const progress = level / 5;
@@ -1102,6 +1154,7 @@
                 setupInputEventListeners();
                 populateFrameLevelsTable();
                 
+                loadUserSettings(); // Load saved user settings
                 calculate();
                 updateSpeedTimeChart();
             } catch (e) {
@@ -1132,11 +1185,12 @@
             const calculationInputs = [
                 'weight', 'height', 'heightFeet', 'heightInches', 
                 'distance', 'elevation', 'avgSpeed', 'courseProfile', 
-                'laps'
+                'laps', 'ftp', 'power', 'powerRange', 'routeSelect', 'worldSelect'
             ];
             
             calculationInputs.forEach(id => {
                 document.getElementById(id).addEventListener('input', function() {
+                    saveUserSettings(); // Save settings when input changes
                     calculate();
                     if (id === 'avgSpeed' || id === 'distance') {
                         updateSpeedTimeChart();
@@ -1149,6 +1203,7 @@
                 const percentage = parseFloat(this.value);
                 document.getElementById('powerRangeValue').textContent = percentage + '%';
                 document.getElementById('power').value = Math.round(ftp * (percentage / 100));
+                saveUserSettings(); // Save settings when input changes
                 calculate();
                 updateSpeedTimeChart();
             });
@@ -1159,6 +1214,7 @@
                 const percentage = Math.round((power / ftp) * 100);
                 document.getElementById('powerRange').value = percentage;
                 document.getElementById('powerRangeValue').textContent = percentage + '%';
+                saveUserSettings(); // Save settings when input changes
                 calculate();
                 updateSpeedTimeChart();
             });
@@ -1167,6 +1223,7 @@
                 const percentage = parseInput('powerRange');
                 const ftp = parseFloat(this.value);
                 document.getElementById('power').value = Math.round(ftp * (percentage / 100));
+                saveUserSettings(); // Save settings when input changes
                 calculate();
                 updateSpeedTimeChart();
             });
@@ -1304,6 +1361,7 @@
             document.getElementById('routeSummary').innerHTML = 
                 `<strong>Route Summary:</strong> ${route.name} (${laps} ${laps === 1 ? 'lap' : 'laps'}) - ${totalDistance.toFixed(1)} km, ${Math.round(totalElevation)} m elevation (${profile})`;
             
+            saveUserSettings(); // Save settings when route changes
             calculate();
         }
 
@@ -1400,6 +1458,7 @@
                                 const index = elements[0].index;
                                 const newSpeed = speeds[index];
                                 document.getElementById('avgSpeed').value = newSpeed;
+                                saveUserSettings(); // Save settings when speed changes
                                 calculate();
                             }
                         }
@@ -2251,6 +2310,7 @@
 
         // Utility functions
         function resetInputs() {
+            localStorage.removeItem('userSettings'); // Clear saved settings
             document.getElementById('distance').value = '30';
             document.getElementById('elevation').value = '150';
             document.getElementById('weight').value = '75';
@@ -2286,6 +2346,7 @@
             isMetric = !isMetric;
             updateUnitDisplay();
             convertValues();
+            saveUserSettings(); // Save the unit preference
             calculate();
         }
 
