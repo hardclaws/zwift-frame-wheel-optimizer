@@ -594,6 +594,23 @@
             background-color: #fff8e1;
         }
 
+        .bike-type-container {
+            margin-top: 10px;
+        }
+
+        .bike-type-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .bike-type-select-all {
+            font-size: 0.8em;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+
         @media (max-width: 768px) {
             .control-panel, .input-grid, .results-container, .speed-time-container, .training-details {
                 grid-template-columns: 1fr;
@@ -737,20 +754,24 @@
                                 <label>Est. Avg Speed (km/h)</label>
                                 <input type="number" id="avgSpeed" value="30" min="10" max="60" step="0.1">
                             </div>
-
-                            <div class="input-group">
-                                <label>Bike Type</label>
-                                <select id="bikeType">
-                                    <option value="road">Road Bike</option>
-                                    <option value="tt">Time Trial (TT)</option>
-                                    <option value="gravel">Gravel Bike</option>
-                                    <option value="mtb">Mountain Bike</option>
-                                    <option value="halo">Halo Bike</option>
-                                    <option value="funny">Funny Bike</option>
-                                    <option value="handcycle">Handcycle</option>
-                                </select>
+                        </div>
+                        
+                        <div class="bike-type-container">
+                            <div class="bike-type-title">
+                                <h4>Bike Type</h4>
+                                <div class="bike-type-select-all" onclick="toggleAllBikeTypes()">Select All</div>
+                            </div>
+                            <div class="filter-group" id="bikeTypeFilters">
+                                <div class="filter-chip active" data-bike-type="road">Road Bike</div>
+                                <div class="filter-chip active" data-bike-type="tt">Time Trial (TT)</div>
+                                <div class="filter-chip active" data-bike-type="gravel">Gravel Bike</div>
+                                <div class="filter-chip active" data-bike-type="mtb">Mountain Bike</div>
+                                <div class="filter-chip active" data-bike-type="halo">Halo Bike</div>
+                                <div class="filter-chip active" data-bike-type="funny">Funny Bike</div>
+                                <div class="filter-chip active" data-bike-type="handcycle">Handcycle</div>
                             </div>
                         </div>
+                        
                         <div class="bike-summary" id="bikeSummary">
                             <strong>Best Equipment:</strong> Loading...
                         </div>
@@ -1111,7 +1132,7 @@
             const calculationInputs = [
                 'weight', 'height', 'heightFeet', 'heightInches', 
                 'distance', 'elevation', 'avgSpeed', 'courseProfile', 
-                'bikeType', 'laps'
+                'laps'
             ];
             
             calculationInputs.forEach(id => {
@@ -1148,6 +1169,14 @@
                 document.getElementById('power').value = Math.round(ftp * (percentage / 100));
                 calculate();
                 updateSpeedTimeChart();
+            });
+
+            // Add event listeners for bike type chips
+            document.querySelectorAll('#bikeTypeFilters .filter-chip').forEach(chip => {
+                chip.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    calculate();
+                });
             });
         }
 
@@ -1598,7 +1627,6 @@
         function calculate() {
             try {
                 const inputs = {
-                    bikeType: document.getElementById('bikeType').value,
                     distance: parseInput('distance'),
                     elevation: parseInput('elevation'),
                     weight: parseInput('weight'),
@@ -1609,6 +1637,15 @@
                     avgSpeed: parseInput('avgSpeed'),
                     laps: parseInput('laps') || 1
                 };
+
+                // Get selected bike types
+                const selectedBikeTypes = Array.from(document.querySelectorAll('#bikeTypeFilters .filter-chip.active'))
+                    .map(chip => chip.dataset.bikeType);
+                
+                if (selectedBikeTypes.length === 0) {
+                    document.getElementById('bikeSummary').innerHTML = '<strong>Best Equipment:</strong> Please select at least one bike type';
+                    return;
+                }
 
                 const routeSelect = document.getElementById('routeSelect');
                 const selectedRouteName = routeSelect.value;
@@ -1627,28 +1664,47 @@
                 wheels = applyActiveFilters(wheels);
                 
                 const wheelResults = wheels.map(wheel => {
-                    const wheelPerf = wheel.performance[inputs.bikeType] || wheel.performance.road;
+                    const wheelPerf = wheel.performance.road; // Default to road bike performance
+                    
+                    // Check if this wheel has performance data for any of the selected bike types
+                    const hasPerformanceForSelectedType = selectedBikeTypes.some(type => 
+                        wheel.performance[type] !== undefined
+                    );
+                    
+                    if (!hasPerformanceForSelectedType) {
+                        return null; // Skip wheels that don't have performance data for selected types
+                    }
                     
                     const weightFactor = Math.pow(inputs.weight / 75, 0.7); 
                     const powerFactor = Math.min(1 + (inputs.powerPercentage - 1) * 0.5, 1.5);
                     
-                    const flatSavings = wheelPerf.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
-                    const climbSavings = wheelPerf.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
-                    const totalSavings = flatSavings + climbSavings;
+                    // Calculate weighted average savings across selected bike types
+                    let totalFlatSavings = 0;
+                    let totalClimbSavings = 0;
+                    
+                    selectedBikeTypes.forEach(type => {
+                        const typePerf = wheel.performance[type] || wheel.performance.road;
+                        totalFlatSavings += typePerf.flat * (1 - climbingImportance) * baseTime / 3600 / weightFactor * powerFactor;
+                        totalClimbSavings += typePerf.climb * climbingImportance * baseTime / 3600 / (weightFactor * 1.2);
+                    });
+                    
+                    const avgFlatSavings = totalFlatSavings / selectedBikeTypes.length;
+                    const avgClimbSavings = totalClimbSavings / selectedBikeTypes.length;
+                    const totalSavings = avgFlatSavings + avgClimbSavings;
                     
                     return {
                         name: wheel.name,
                         brand: wheel.brand,
-                        flatSavings,
-                        climbSavings,
+                        flatSavings: avgFlatSavings,
+                        climbSavings: avgClimbSavings,
                         totalSavings,
                         custom: wheel.custom || false
                     };
-                }).sort((a, b) => b.totalSavings - a.totalSavings);
+                }).filter(wheel => wheel !== null).sort((a, b) => b.totalSavings - a.totalSavings);
                 
                 let frames = getBikeFrames();
                 frames = applyFrameFilters(frames);
-                frames = frames.filter(frame => frame.type === inputs.bikeType);
+                frames = frames.filter(frame => selectedBikeTypes.includes(frame.type));
                 
                 const frameResults = frames.map(frame => {
                     const currentLevel = frameLevels[frame.name] || 0;
@@ -1682,7 +1738,7 @@
                 
                 // Check if the best frame is an all-in-one bike
                 const framesData = getBikeFrames();
-                const bestFrameData = framesData.find(f => f.name === frameResults[0].name);
+                const bestFrameData = framesData.find(f => f.name === frameResults[0]?.name);
 
                 if (!(bestFrameData && bestFrameData.noWheels)) {
                     updateChart(wheelResults);
@@ -1716,7 +1772,7 @@
             const bikeSummary = document.getElementById('bikeSummary');
             
             if (frameResults.length === 0) {
-                bikeSummary.innerHTML = '<strong>Best Equipment:</strong> No frames available for this bike type';
+                bikeSummary.innerHTML = '<strong>Best Equipment:</strong> No frames available for selected bike types';
                 return;
             }
             
@@ -2026,7 +2082,7 @@
 
                 if (frameResults.length === 0) {
                     const row = table.insertRow();
-                    row.innerHTML = '<td colspan="5" style="text-align: center;">No frames available for this bike type</td>';
+                    row.innerHTML = '<td colspan="5" style="text-align: center;">No frames available for selected bike types</td>';
                     return;
                 }
 
@@ -2068,24 +2124,28 @@
                 const wheelBrand = document.getElementById('wheelBrand').value.trim();
                 const wheelFlat = parseFloat(document.getElementById('wheelFlat').value);
                 const wheelClimb = parseFloat(document.getElementById('wheelClimb').value);
-                const bikeType = document.getElementById('bikeType').value;
+                const selectedBikeTypes = Array.from(document.querySelectorAll('#bikeTypeFilters .filter-chip.active'))
+                    .map(chip => chip.dataset.bikeType);
 
                 if (!wheelName || isNaN(wheelFlat) || isNaN(wheelClimb)) {
                     alert("Please fill in all required fields with valid values.");
                     return;
                 }
 
+                const performance = {};
+                selectedBikeTypes.forEach(type => {
+                    performance[type] = {
+                        flat: wheelFlat,
+                        climb: wheelClimb
+                    };
+                });
+                
                 const newWheel = { 
                     name: wheelName, 
                     brand: wheelBrand,
                     type: "allround",
-                    performance: {
-                        [bikeType]: {
-                            flat: wheelFlat,
-                            climb: wheelClimb
-                        }
-                    },
-                    bikeType: [bikeType],
+                    performance: performance,
+                    bikeType: selectedBikeTypes,
                     custom: true 
                 };
                 
@@ -2171,6 +2231,24 @@
             calculate();
         }
 
+        // Toggle all bike types
+        function toggleAllBikeTypes() {
+            const chips = document.querySelectorAll('#bikeTypeFilters .filter-chip');
+            const selectAllText = document.querySelector('.bike-type-select-all');
+            
+            const allActive = Array.from(chips).every(chip => chip.classList.contains('active'));
+            
+            if (allActive) {
+                chips.forEach(chip => chip.classList.remove('active'));
+                selectAllText.textContent = 'Select All';
+            } else {
+                chips.forEach(chip => chip.classList.add('active'));
+                selectAllText.textContent = 'Deselect All';
+            }
+            
+            calculate();
+        }
+
         // Utility functions
         function resetInputs() {
             document.getElementById('distance').value = '30';
@@ -2182,7 +2260,6 @@
             document.getElementById('powerRangeValue').textContent = '100%';
             document.getElementById('power').value = '300';
             document.getElementById('avgSpeed').value = '30';
-            document.getElementById('bikeType').value = 'road';
             document.getElementById('courseProfile').value = 'flat';
             document.getElementById('routeSelect').value = 'custom';
             document.getElementById('worldSelect').value = 'all';
@@ -2191,6 +2268,12 @@
             if (!isMetric) {
                 toggleUnits();
             }
+            
+            // Reset bike type filters to all selected
+            document.querySelectorAll('#bikeTypeFilters .filter-chip').forEach(chip => {
+                chip.classList.add('active');
+            });
+            document.querySelector('.bike-type-select-all').textContent = 'Deselect All';
             
             calculate();
             updateSpeedTimeChart();
