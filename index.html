@@ -752,7 +752,7 @@
                         <div class="input-grid">
                             <div class="input-group">
                                 <label>Est. Avg Speed (km/h)</label>
-                                <input type="number" id="avgSpeed" value="30" min="10" max="60" step="0.1">
+                                <input type="number" id="avgSpeed" value="30" min="10" max="90" step="0.1">
                             </div>
                         </div>
                         
@@ -763,13 +763,13 @@
                             </div>
                             <div class="filter-group" id="bikeTypeFilters">
                                 <div class="filter-chip active" data-bike-type="road">Road Bike</div>
-                                <div class="filter-chip active" data-bike-type="tt">Time Trial (TT)</div>
-                                <div class="filter-chip active" data-bike-type="gravel">Gravel Bike</div>
-                                <div class="filter-chip active" data-bike-type="mtb">Mountain Bike</div>
-                                <div class="filter-chip active" data-bike-type="halo road">Halo Road Bike</div>
-                                <div class="filter-chip active" data-bike-type="halo tt">Halo TT Bike</div>
-                                <div class="filter-chip active" data-bike-type="funny">Funny Bike</div>
-                                <div class="filter-chip active" data-bike-type="handcycle">Handcycle</div>
+                                <div class="filter-chip" data-bike-type="halo road">Halo Road Bike</div>
+                                <div class="filter-chip" data-bike-type="gravel">Gravel Bike</div>
+                                <div class="filter-chip" data-bike-type="mtb">Mountain Bike</div>
+                                <div class="filter-chip" data-bike-type="tt">Time Trial (TT)</div>
+                                <div class="filter-chip" data-bike-type="halo tt">Halo TT Bike</div>
+                                <div class="filter-chip" data-bike-type="funny">Funny Bike</div>
+                                <div class="filter-chip" data-bike-type="handcycle">Handcycle</div>
                             </div>
                         </div>
                         
@@ -2329,11 +2329,15 @@
             if (!isMetric) {
                 toggleUnits();
             }
-            
-            // Reset bike type filters to all selected
-            document.querySelectorAll('#bikeTypeFilters .filter-chip').forEach(chip => {
-                chip.classList.add('active');
-            });
+
+       // Reset bike type filters to only Road Bike selected
+            const bikeTypeChips = document.querySelectorAll('#bikeTypeFilters .filter-chip');
+            bikeTypeChips.forEach(chip => {
+                chip.classList.remove('active');
+                if (chip.dataset.bikeType === 'road') {
+                    chip.classList.add('active');
+                }
+        });
             document.querySelector('.bike-type-select-all').textContent = 'Deselect All';
             
             calculate();
